@@ -1,0 +1,11 @@
+[package]
+name = "gdx"
+version = "0.1.0"
+edition = "2024"
+
+
+[dependencies]
+godot = { workspace = true }
+paste = { workspace = true }
+parking_lot = { workspace = true }
+gdx_macro = { path = "../gdx_macro" }

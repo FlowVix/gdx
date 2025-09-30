@@ -9,6 +9,7 @@ mod view;
 pub use app::{App, GDXApp};
 pub use ctx::{Context, Message, MessageResult};
 
+pub use gdx_macro::view;
 pub use view::{
     AnchorType, OptionViewState, VecViewState, View, ViewID,
     element::{
