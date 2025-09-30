@@ -9,3 +9,4 @@ godot = { workspace = true }
 paste = { workspace = true }
 parking_lot = { workspace = true }
 gdx_macro = { path = "../gdx_macro" }
+either = { workspace = true }

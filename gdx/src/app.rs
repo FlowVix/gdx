@@ -53,21 +53,21 @@ where
     AppFn: FnMut(&mut State) -> AppView,
 {
     fn run(&mut self) {
-        if let Some((prev, mut state)) = self.view.take() {
+        if let Some((prev, state)) = &mut self.view {
             if !{ self.ctx.msg_queue.lock().is_empty() } {
                 while let Some(v) = self.ctx.msg_queue.lock().pop_front() {
-                    prev.message(v.msg, &v.path, &mut state, &mut self.state);
+                    prev.message(v.msg, &v.path, state, &mut self.state);
                 }
+                let new = (self.app_fn)(&mut self.state);
+                new.rebuild(
+                    &prev,
+                    state,
+                    &mut self.ctx,
+                    &mut self.root,
+                    AnchorType::ChildOf,
+                );
+                *prev = new;
             }
-            let new = (self.app_fn)(&mut self.state);
-            new.rebuild(
-                &prev,
-                &mut state,
-                &mut self.ctx,
-                &mut self.root,
-                AnchorType::ChildOf,
-            );
-            self.view = Some((new, state));
         } else {
             let view = (self.app_fn)(&mut self.state);
             let state = view.build(&mut self.ctx, &mut self.root, AnchorType::ChildOf);

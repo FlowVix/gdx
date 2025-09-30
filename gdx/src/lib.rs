@@ -9,13 +9,17 @@ mod view;
 pub use app::{App, GDXApp};
 pub use ctx::{Context, Message, MessageResult};
 
+pub use either;
 pub use gdx_macro::view;
 pub use view::{
-    AnchorType, OptionViewState, VecViewState, View, ViewID,
+    AnchorType, View, ViewID,
+    either::EitherViewState,
     element::{
         Element, ElementView, ElementViewState,
         attributes::{Attr, AttrViewState},
         el,
         event::{Event, EventViewState},
     },
+    iter::VecViewState,
+    option::OptionViewState,
 };

@@ -1,3 +1,4 @@
+use either::Either::{self, Left, Right};
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -9,6 +10,13 @@ pub struct ViewBody {
     pub views: Vec<ViewType>,
 }
 
+pub struct IfView {
+    cond: Expr,
+    body: ViewBody,
+    else_expr: Either<Box<IfView>, ViewBody>,
+}
+
+#[allow(clippy::large_enum_variant)]
 pub enum ViewType {
     Element {
         typ: Ident,
@@ -22,6 +30,7 @@ pub enum ViewType {
         key: Expr,
         body: ViewBody,
     },
+    If(IfView),
 }
 
 pub enum ElemModifier {
@@ -43,6 +52,29 @@ impl Parse for ElemModifier {
             let value = input.parse()?;
             Ok(ElemModifier::Attr(name, value))
         }
+    }
+}
+
+impl Parse for IfView {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        input.parse::<Token![if]>()?;
+        let cond = input.parse()?;
+        let inner;
+        braced!(inner in input);
+        let body = inner.parse()?;
+        input.parse::<Token![else]>()?;
+        let else_expr = if input.peek(Token![if]) {
+            Left(Box::new(input.parse()?))
+        } else {
+            let inner;
+            braced!(inner in input);
+            Right(inner.parse()?)
+        };
+        Ok(Self {
+            cond,
+            body,
+            else_expr,
+        })
     }
 }
 
@@ -70,6 +102,8 @@ impl Parse for ViewType {
                 key,
                 body,
             })
+        } else if input.peek(Token![if]) {
+            Ok(ViewType::If(input.parse()?))
         } else {
             let typ = input.parse()?;
             let modifiers = if input.peek(token::Bracket) {
@@ -101,6 +135,18 @@ impl Parse for ViewBody {
             views.push(input.parse()?);
         }
         Ok(ViewBody { views })
+    }
+}
+
+impl IfView {
+    pub fn gen_rust(&self) -> TokenStream {
+        let body = self.body.gen_rust();
+        let else_expr = match &self.else_expr {
+            Left(v) => v.gen_rust(),
+            Right(v) => v.gen_rust(),
+        };
+        let cond = &self.cond;
+        quote! { if #cond { ::gdx::either::Either::Left(#body) } else { ::gdx::either::Either::Right(#else_expr) } }
     }
 }
 
@@ -140,6 +186,7 @@ impl ViewType {
                 let body = body.gen_rust();
                 quote! { (#iter).into_iter().map(|#pattern| (#key, #body) ).collect::<Vec<_>>() }
             }
+            ViewType::If(if_view) => if_view.gen_rust(),
         }
     }
 }
@@ -147,6 +194,10 @@ impl ViewType {
 impl ViewBody {
     pub fn gen_rust(&self) -> TokenStream {
         let views = self.views.iter().map(|v| v.gen_rust());
-        quote! { ( #(#views),* ) }
+        if self.views.len() == 1 {
+            quote! { #(#views),* }
+        } else {
+            quote! { ( #(#views),* ) }
+        }
     }
 }

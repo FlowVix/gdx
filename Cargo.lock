@@ -30,6 +30,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fd1289c04a9ea8cb22300a459a72a385d7c73d3259e2ed7dcb2af674838cfa9"
 
 [[package]]
+name = "either"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
+
+[[package]]
 name = "gdextension-api"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -39,6 +45,7 @@ checksum = "e25d88dabe9fdb2e064cb545312178ec4025eefb62d9a3bbce1769088e2c381d"
 name = "gdx"
 version = "0.1.0"
 dependencies = [
+ "either",
  "gdx_macro",
  "godot",
  "parking_lot",
@@ -49,6 +56,7 @@ dependencies = [
 name = "gdx_macro"
 version = "0.1.0"
 dependencies = [
+ "either",
  "paste",
  "proc-macro2",
  "quote",
