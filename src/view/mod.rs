@@ -10,13 +10,14 @@ use godot::{
     obj::{Gd, NewAlloc},
 };
 
-use crate::{
-    ctx::{Context, Message, MessageResult},
-    util::hash,
-};
+use crate::ctx::{Context, Message, MessageResult};
+use crate::util::hash;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct ViewID(pub u64);
+pub enum ViewID {
+    Structural(u64),
+    Key(u64),
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum AnchorType {
@@ -151,7 +152,7 @@ where
         OptionViewState {
             anchor: opt_anchor.clone(),
             state: self.as_ref().map(|inner| {
-                let inner_id = ctx.new_id();
+                let inner_id = ctx.new_structural_id();
                 (
                     ctx.with_id(inner_id, |ctx| {
                         inner.build(ctx, &mut opt_anchor, AnchorType::Before)
@@ -185,7 +186,7 @@ where
                 state.state = None;
             }
             (Some(new), None) => {
-                let inner_id = ctx.new_id();
+                let inner_id = ctx.new_structural_id();
                 state.state = Some((
                     ctx.with_id(inner_id, |ctx| {
                         new.build(ctx, &mut opt_anchor, AnchorType::Before)
@@ -267,7 +268,7 @@ where
 
 pub struct VecViewState<InnerViewState> {
     anchor: Gd<Node>,
-    state: Vec<(InnerViewState, ViewID)>,
+    state: Vec<InnerViewState>,
 }
 
 impl<State, K, Inner> View<State> for Vec<(K, Inner)>
@@ -289,14 +290,10 @@ where
             anchor: opt_anchor.clone(),
             state: self
                 .iter()
-                .map(|(_, inner)| {
-                    let inner_id = ctx.new_id();
-                    (
-                        ctx.with_id(inner_id, |ctx| {
-                            inner.build(ctx, &mut opt_anchor, AnchorType::Before)
-                        }),
-                        inner_id,
-                    )
+                .map(|(k, inner)| {
+                    ctx.with_id(ViewID::Key(hash(k)), |ctx| {
+                        inner.build(ctx, &mut opt_anchor, AnchorType::Before)
+                    })
                 })
                 .collect(),
         }
@@ -320,20 +317,39 @@ where
             .state
             .drain(..)
             .enumerate()
-            .map(|(idx, (inner, id))| {
+            .map(|(idx, inner)| {
                 let mut nodes = vec![];
                 prev[idx].1.collect_nodes(&inner, &mut nodes);
                 for i in &nodes {
                     opt_anchor.get_parent().unwrap().remove_child(i);
                 }
-                (&prev[idx].0, (inner, id, nodes))
+                (&prev[idx].0, (inner, nodes, &prev[idx].1))
             })
             .collect::<HashMap<_, _>>();
 
         for (k, v) in self {
-            if let Some((inner, id, nodes)) = prev_map.remove(k) {
-                //
+            if let Some((mut inner, nodes, prev)) = prev_map.remove(k) {
+                for node in &nodes {
+                    AnchorType::Before.add(&mut opt_anchor, node);
+                }
+                ctx.with_id(ViewID::Key(hash(k)), |ctx| {
+                    v.rebuild(prev, &mut inner, ctx, &mut opt_anchor, AnchorType::Before);
+                });
+                state.state.push(inner);
+            } else {
+                let inner = ctx.with_id(ViewID::Key(hash(k)), |ctx| {
+                    v.build(ctx, &mut opt_anchor, AnchorType::Before)
+                });
+                state.state.push(inner);
             }
+        }
+        for (k, (mut inner, nodes, prev)) in prev_map.drain() {
+            for node in &nodes {
+                AnchorType::Before.add(&mut opt_anchor, node);
+            }
+            ctx.with_id(ViewID::Key(hash(k)), |ctx| {
+                prev.teardown(&mut inner, ctx, &mut opt_anchor, AnchorType::Before);
+            });
         }
     }
 
@@ -344,7 +360,20 @@ where
         anchor: &mut Node,
         anchor_type: super::AnchorType,
     ) {
-        todo!()
+        assert_eq!(
+            self.len(),
+            state.state.len(),
+            "Bruh why are they not the same"
+        );
+        let mut opt_anchor = state.anchor.clone();
+
+        for ((k, inner), state) in self.iter().zip(&mut state.state) {
+            ctx.with_id(ViewID::Key(hash(k)), |ctx| {
+                inner.teardown(state, ctx, &mut opt_anchor, AnchorType::Before);
+            });
+        }
+        anchor_type.remove(anchor, &opt_anchor);
+        opt_anchor.queue_free();
     }
 
     fn message(
@@ -354,11 +383,35 @@ where
         view_state: &mut Self::ViewState,
         app_state: &mut State,
     ) -> crate::MessageResult {
-        todo!()
+        assert_eq!(
+            self.len(),
+            view_state.state.len(),
+            "Bruh why are they not the same"
+        );
+        if let Some((start, rest)) = path.split_first() {
+            for ((k, inner), state) in self.iter().zip(&mut view_state.state) {
+                if *start == ViewID::Key(hash(k)) {
+                    return inner.message(msg, rest, state, app_state);
+                }
+            }
+            // if *start == view_state.$v.1 {
+            //     return self.$v.message(msg, rest, &mut view_state.$v.0, app_state);
+            // }
+            MessageResult::Stale(msg)
+        } else {
+            MessageResult::Stale(msg)
+        }
     }
 
     fn collect_nodes(&self, state: &Self::ViewState, nodes: &mut Vec<Gd<Node>>) {
-        todo!()
+        assert_eq!(
+            self.len(),
+            state.state.len(),
+            "Bruh why are they not the same"
+        );
+        for ((_, inner), state) in self.iter().zip(&state.state) {
+            inner.collect_nodes(state, nodes);
+        }
     }
 }
 
@@ -374,7 +427,7 @@ macro_rules! tuple_impl {
                     (
                         $(
                             {
-                                let child_id = ctx.new_id();
+                                let child_id = ctx.new_structural_id();
                                 (ctx.with_id(child_id, |ctx| {
                                     self.$v.build(ctx, anchor, anchor_type)
                                 }), child_id)

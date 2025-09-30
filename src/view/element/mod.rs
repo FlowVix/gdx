@@ -58,7 +58,7 @@ where
         let mut node = N::new_alloc();
         anchor_type.add(anchor, &node.clone().upcast::<Node>());
 
-        let child_id = ctx.new_id();
+        let child_id = ctx.new_structural_id();
         let child_view_state = ctx.with_id(child_id, |ctx| {
             self.children
                 .build(ctx, node.upcast_mut::<Node>(), AnchorType::ChildOf)

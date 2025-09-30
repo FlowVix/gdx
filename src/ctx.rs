@@ -13,8 +13,8 @@ pub struct Context {
 }
 
 impl Context {
-    pub(crate) fn new_id(&mut self) -> ViewID {
-        let out = ViewID(self.id_counter);
+    pub(crate) fn new_structural_id(&mut self) -> ViewID {
+        let out = ViewID::Structural(self.id_counter);
         self.id_counter += 1;
         out
     }
