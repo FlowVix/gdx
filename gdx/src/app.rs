@@ -2,6 +2,7 @@ use std::{collections::VecDeque, marker::PhantomData, sync::Arc};
 
 use godot::{
     classes::Node,
+    global::godot_print,
     obj::{Gd, Inherits},
 };
 use parking_lot::Mutex;
@@ -59,8 +60,9 @@ where
                     prev.message(v.msg, &v.path, state, &mut self.state);
                 }
                 let new = (self.app_fn)(&mut self.state);
+                godot_print!("Rebuilding");
                 new.rebuild(
-                    &prev,
+                    prev,
                     state,
                     &mut self.ctx,
                     &mut self.root,
@@ -70,6 +72,7 @@ where
             }
         } else {
             let view = (self.app_fn)(&mut self.state);
+            godot_print!("Initial build");
             let state = view.build(&mut self.ctx, &mut self.root, AnchorType::ChildOf);
             self.view = Some((view, state));
         }

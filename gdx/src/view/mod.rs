@@ -1,6 +1,7 @@
 pub mod either;
 pub mod element;
 pub mod iter;
+pub mod lens;
 pub mod option;
 
 use std::ops::Deref;

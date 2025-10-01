@@ -1,34 +1,38 @@
-use std::sync::Arc;
-
+use crate::OnMounted;
 use godot::{
     builtin::{Callable, Variant},
     classes::Node,
     meta::ToGodot,
+    obj::Inherits,
+    prelude::Gd,
 };
+use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
     AnchorType, Attr, ElementView, Message, MessageResult, View, ViewID, ctx::FullMessage,
     view::element::impl_element_view,
 };
 
-pub struct Event<Name, Cb, Inner> {
+pub struct OnSignal<N, Name, Cb, Inner> {
     pub(crate) inner: Inner,
     pub(crate) name: Name,
     pub(crate) cb: Cb,
+    pub(crate) _p: PhantomData<N>,
 }
 
-pub struct EventViewState<InnerViewState> {
+pub struct OnSignalViewState<InnerViewState> {
     callable: Callable,
     inner_view_state: InnerViewState,
 }
 
-impl<State, Name, Cb, Inner> View<State> for Event<Name, Cb, Inner>
+impl<N, State, Name, Cb, Inner> View<State> for OnSignal<N, Name, Cb, Inner>
 where
-    Inner: ElementView<State>,
+    Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,
     Cb: Fn(&mut State, &[Variant]),
+    N: Inherits<Node>,
 {
-    type ViewState = EventViewState<Inner::ViewState>;
+    type ViewState = OnSignalViewState<Inner::ViewState>;
 
     fn build(
         &self,
@@ -44,7 +48,7 @@ where
         let name: Arc<str> = self.name.as_ref().into();
         let callable = Callable::from_fn("boing", move |args| {
             msgs.lock().push_back(FullMessage {
-                msg: Message::Event {
+                msg: Message::Signal {
                     name: name.clone(),
                     args: args.iter().map(|v| (**v).clone()).collect(),
                 },
@@ -52,8 +56,8 @@ where
             });
         });
 
-        node.connect(self.name.as_ref(), &callable);
-        EventViewState {
+        node.upcast_mut().connect(self.name.as_ref(), &callable);
+        OnSignalViewState {
             callable,
             inner_view_state,
         }
@@ -76,14 +80,15 @@ where
         );
         let mut node = self.get_node(state);
 
-        node.disconnect(prev.name.as_ref(), &state.callable);
+        node.upcast_mut()
+            .disconnect(prev.name.as_ref(), &state.callable);
 
         let msgs = ctx.msg_queue.clone();
         let path: Arc<[ViewID]> = ctx.path.clone().into();
         let name: Arc<str> = self.name.as_ref().into();
         let callable = Callable::from_fn("boing", move |args| {
             msgs.lock().push_back(FullMessage {
-                msg: Message::Event {
+                msg: Message::Signal {
                     name: name.clone(),
                     args: args.iter().map(|v| (**v).clone()).collect(),
                 },
@@ -91,7 +96,7 @@ where
             });
         });
 
-        node.connect(self.name.as_ref(), &callable);
+        node.upcast_mut().connect(self.name.as_ref(), &callable);
         state.callable = callable;
     }
 
@@ -115,38 +120,36 @@ where
     ) -> MessageResult {
         if path.is_empty() {
             match msg {
-                Message::Event { ref name, ref args } => {
+                Message::Signal { ref name, ref args } => {
                     if **name == *self.name.as_ref() {
                         (self.cb)(app_state, args);
-                        MessageResult::Action
-                    } else {
-                        self.inner
-                            .message(msg, path, &mut view_state.inner_view_state, app_state)
+                        return MessageResult::Success;
                     }
                 }
+                _ => {}
             }
-        } else {
-            self.inner
-                .message(msg, path, &mut view_state.inner_view_state, app_state)
         }
+        self.inner
+            .message(msg, path, &mut view_state.inner_view_state, app_state)
     }
 
-    fn collect_nodes(&self, state: &Self::ViewState, nodes: &mut Vec<godot::prelude::Gd<Node>>) {
+    fn collect_nodes(&self, state: &Self::ViewState, nodes: &mut Vec<Gd<Node>>) {
         self.inner.collect_nodes(&state.inner_view_state, nodes);
     }
 }
 
-impl<State, Name, Cb, Inner> ElementView<State> for Event<Name, Cb, Inner>
+impl<N, State, Name, Cb, Inner> ElementView<N, State> for OnSignal<N, Name, Cb, Inner>
 where
-    Inner: ElementView<State>,
+    Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,
     Cb: Fn(&mut State, &[Variant]),
+    N: Inherits<Node>,
 {
-    fn get_node(&self, state: &Self::ViewState) -> godot::prelude::Gd<Node> {
+    fn get_node(&self, state: &Self::ViewState) -> Gd<N> {
         self.inner.get_node(&state.inner_view_state)
     }
 }
 
-impl<Name0, Cb0, Inner> Event<Name0, Cb0, Inner> {
-    impl_element_view! {}
+impl<N, Name0, Cb0, Inner> OnSignal<N, Name0, Cb0, Inner> {
+    impl_element_view! { N }
 }

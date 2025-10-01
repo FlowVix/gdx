@@ -13,7 +13,7 @@ pub struct ViewBody {
 pub struct IfView {
     cond: Expr,
     body: ViewBody,
-    else_expr: Either<Box<IfView>, ViewBody>,
+    else_expr: Option<Either<Box<IfView>, ViewBody>>,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -31,21 +31,46 @@ pub enum ViewType {
         body: ViewBody,
     },
     If(IfView),
+    Lens {
+        parent: Expr,
+        map: Expr,
+        bind: Ident,
+        body: ViewBody,
+    },
+}
+
+pub struct Event {
+    typ: Ident,
+    arg: Option<Ident>,
 }
 
 pub enum ElemModifier {
     Attr(Ident, Expr),
-    Event(Ident, Expr),
+    Event(Event, Expr),
+}
+
+impl Parse for Event {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let typ = input.parse()?;
+        let arg = if input.peek(token::Paren) {
+            let inner;
+            parenthesized!(inner in input);
+            Some(inner.parse()?)
+        } else {
+            None
+        };
+        Ok(Self { typ, arg })
+    }
 }
 
 impl Parse for ElemModifier {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         if input.peek(Token![@]) {
             input.parse::<Token![@]>()?;
-            let name = input.parse()?;
+            let typ = input.parse()?;
             input.parse::<Token![:]>()?;
             let value = input.parse()?;
-            Ok(ElemModifier::Event(name, value))
+            Ok(ElemModifier::Event(typ, value))
         } else {
             let name = input.parse()?;
             input.parse::<Token![:]>()?;
@@ -62,14 +87,19 @@ impl Parse for IfView {
         let inner;
         braced!(inner in input);
         let body = inner.parse()?;
-        input.parse::<Token![else]>()?;
-        let else_expr = if input.peek(Token![if]) {
-            Left(Box::new(input.parse()?))
+        let else_expr = if input.peek(Token![else]) {
+            input.parse::<Token![else]>()?;
+            Some(if input.peek(Token![if]) {
+                Left(Box::new(input.parse()?))
+            } else {
+                let inner;
+                braced!(inner in input);
+                Right(inner.parse()?)
+            })
         } else {
-            let inner;
-            braced!(inner in input);
-            Right(inner.parse()?)
+            None
         };
+
         Ok(Self {
             cond,
             body,
@@ -104,6 +134,22 @@ impl Parse for ViewType {
             })
         } else if input.peek(Token![if]) {
             Ok(ViewType::If(input.parse()?))
+        } else if input.peek(Token![where]) {
+            input.parse::<Token![where]>()?;
+            let parent = input.parse()?;
+            input.parse::<Token![in]>()?;
+            let map = input.parse()?;
+            input.parse::<Token![become]>()?;
+            let bind = input.parse()?;
+            let inner;
+            braced!(inner in input);
+            let body = inner.parse()?;
+            Ok(ViewType::Lens {
+                parent,
+                map,
+                bind,
+                body,
+            })
         } else {
             let typ = input.parse()?;
             let modifiers = if input.peek(token::Bracket) {
@@ -113,12 +159,13 @@ impl Parse for ViewType {
             } else {
                 None
             };
-            let mut children = None;
-            if input.peek(token::Brace) {
+            let children = if input.peek(token::Brace) {
                 let inner;
                 braced!(inner in input);
-                children = Some(inner.parse()?);
-            }
+                Some(inner.parse()?)
+            } else {
+                None
+            };
             Ok(ViewType::Element {
                 typ,
                 modifiers,
@@ -142,8 +189,9 @@ impl IfView {
     pub fn gen_rust(&self) -> TokenStream {
         let body = self.body.gen_rust();
         let else_expr = match &self.else_expr {
-            Left(v) => v.gen_rust(),
-            Right(v) => v.gen_rust(),
+            Some(Left(v)) => v.gen_rust(),
+            Some(Right(v)) => v.gen_rust(),
+            None => quote! { () },
         };
         let cond = &self.cond;
         quote! { if #cond { ::gdx::either::Either::Left(#body) } else { ::gdx::either::Either::Right(#else_expr) } }
@@ -169,8 +217,11 @@ impl ViewType {
                         ElemModifier::Attr(ident, expr) => {
                             out.extend(quote! { .attr(stringify!(#ident), #expr) })
                         }
-                        ElemModifier::Event(ident, expr) => {
-                            out.extend(quote! { .on(stringify!(#ident), #expr) })
+                        ElemModifier::Event(event, expr) => {
+                            let func_name =
+                                Ident::new(&format!("on_{}", event.typ), event.typ.span());
+                            let arg = event.arg.as_ref().map(|v| quote! { stringify!(#v), });
+                            out.extend(quote! { .#func_name(#arg #expr) })
                         }
                     }
                 }
@@ -187,6 +238,15 @@ impl ViewType {
                 quote! { (#iter).into_iter().map(|#pattern| (#key, #body) ).collect::<Vec<_>>() }
             }
             ViewType::If(if_view) => if_view.gen_rust(),
+            ViewType::Lens {
+                parent,
+                map,
+                bind,
+                body,
+            } => {
+                let body = body.gen_rust();
+                quote! { ::gdx::lens(#parent, #map, |#bind| #body) }
+            }
         }
     }
 }

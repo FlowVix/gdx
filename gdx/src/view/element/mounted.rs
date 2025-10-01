@@ -1,60 +1,59 @@
-use crate::OnMounted;
+use crate::OnSignal;
+use std::{marker::PhantomData, sync::Arc};
+
 use godot::{
-    builtin::{StringName, Variant},
+    builtin::{Callable, Variant},
     classes::Node,
     meta::ToGodot,
     obj::Inherits,
     prelude::Gd,
 };
-use std::marker::PhantomData;
 
 use crate::{
-    ElementView, OnSignal, ViewID,
-    ctx::{Message, MessageResult},
-    view::{AnchorType, View, element::impl_element_view},
+    AnchorType, Attr, ElementView, Message, MessageResult, View, ViewID, ctx::FullMessage,
+    view::element::impl_element_view,
 };
 
-pub struct Attr<N, Name, Inner> {
+pub struct OnMounted<N, Cb, Inner> {
     pub(crate) inner: Inner,
-    pub(crate) name: Name,
-    pub(crate) value: Variant,
+    pub(crate) cb: Cb,
     pub(crate) _p: PhantomData<N>,
 }
 
-pub struct AttrViewState<InnerViewState> {
-    prev_value: Variant,
+pub struct OnMountedViewState<InnerViewState> {
     inner_view_state: InnerViewState,
 }
 
-impl<State, N, Name, Inner> View<State> for Attr<N, Name, Inner>
+impl<N, State, Cb, Inner> View<State> for OnMounted<N, Cb, Inner>
 where
     Inner: ElementView<N, State>,
-    Name: AsRef<str> + Clone,
+    Cb: Fn(&mut State, Gd<N>),
     N: Inherits<Node>,
 {
-    type ViewState = AttrViewState<Inner::ViewState>;
+    type ViewState = OnMountedViewState<Inner::ViewState>;
 
     fn build(
         &self,
-        ctx: &mut crate::ctx::Context,
+        ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
     ) -> Self::ViewState {
         let inner_view_state = self.inner.build(ctx, anchor, anchor_type);
         let mut node = self.inner.get_node(&inner_view_state);
-        let prev_value = node.upcast_ref().get(self.name.as_ref());
-        node.upcast_mut().set(self.name.as_ref(), &self.value);
-        AttrViewState {
-            prev_value,
-            inner_view_state,
-        }
+
+        ctx.msg_queue.lock().push_back(FullMessage {
+            msg: Message::Mounted,
+            path: ctx.path.clone().into(),
+        });
+
+        OnMountedViewState { inner_view_state }
     }
 
     fn rebuild(
         &self,
         prev: &Self,
         state: &mut Self::ViewState,
-        ctx: &mut crate::ctx::Context,
+        ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
     ) {
@@ -65,19 +64,12 @@ where
             anchor,
             anchor_type,
         );
-
-        let mut node = self.get_node(state);
-        if self.name.as_ref() != prev.name.as_ref() {
-            node.upcast_mut().set(prev.name.as_ref(), &state.prev_value);
-        }
-        state.prev_value = node.upcast_ref().get(self.name.as_ref());
-        node.upcast_mut().set(self.name.as_ref(), &self.value);
     }
 
     fn teardown(
         &self,
         state: &mut Self::ViewState,
-        ctx: &mut crate::ctx::Context,
+        ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
     ) {
@@ -87,11 +79,21 @@ where
 
     fn message(
         &self,
-        msg: Message,
-        path: &[ViewID],
+        msg: crate::Message,
+        path: &[crate::ViewID],
         view_state: &mut Self::ViewState,
         app_state: &mut State,
     ) -> MessageResult {
+        if path.is_empty() {
+            match msg {
+                Message::Mounted => {
+                    let node = self.get_node(view_state);
+                    (self.cb)(app_state, node);
+                    return MessageResult::Success;
+                }
+                _ => {}
+            }
+        }
         self.inner
             .message(msg, path, &mut view_state.inner_view_state, app_state)
     }
@@ -101,10 +103,10 @@ where
     }
 }
 
-impl<State, N, Name, Inner> ElementView<N, State> for Attr<N, Name, Inner>
+impl<N, State, Cb, Inner> ElementView<N, State> for OnMounted<N, Cb, Inner>
 where
     Inner: ElementView<N, State>,
-    Name: AsRef<str> + Clone,
+    Cb: Fn(&mut State, Gd<N>),
     N: Inherits<Node>,
 {
     fn get_node(&self, state: &Self::ViewState) -> Gd<N> {
@@ -112,6 +114,6 @@ where
     }
 }
 
-impl<N, Name0, Inner> Attr<N, Name0, Inner> {
+impl<N, Cb0, Inner> OnMounted<N, Cb0, Inner> {
     impl_element_view! { N }
 }

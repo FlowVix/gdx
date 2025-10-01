@@ -1,5 +1,5 @@
 #![deny(unused_must_use, unnameable_types)]
-#![allow(clippy::too_many_arguments)]
+#![allow(clippy::too_many_arguments, clippy::single_match)]
 
 mod app;
 mod ctx;
@@ -18,8 +18,10 @@ pub use view::{
         Element, ElementView, ElementViewState,
         attributes::{Attr, AttrViewState},
         el,
-        event::{Event, EventViewState},
+        mounted::{OnMounted, OnMountedViewState},
+        signal::{OnSignal, OnSignalViewState},
     },
     iter::VecViewState,
+    lens::{Lens, lens},
     option::OptionViewState,
 };

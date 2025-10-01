@@ -31,13 +31,14 @@ pub struct FullMessage {
     pub(crate) path: Arc<[ViewID]>,
 }
 pub enum Message {
-    Event {
+    Signal {
         name: Arc<str>,
         args: Box<[Variant]>,
     },
+    Mounted,
 }
 pub enum MessageResult {
-    Action,
+    Success,
     // Nop,
     Stale(Message),
 }

@@ -1,5 +1,6 @@
 pub mod attributes;
-pub mod event;
+pub mod mounted;
+pub mod signal;
 
 use std::marker::PhantomData;
 
@@ -11,7 +12,7 @@ use godot::{
 };
 
 use crate::{
-    Attr, Event,
+    Attr, OnMounted, OnSignal,
     ctx::{Message, MessageResult},
     view::{AnchorType, View, ViewID},
 };
@@ -134,43 +135,62 @@ where
     }
 }
 
-pub trait ElementView<State>: View<State> + Sized {
-    fn get_node(&self, state: &Self::ViewState) -> Gd<Node>;
+pub trait ElementView<N: Inherits<Node>, State>: View<State> + Sized {
+    fn get_node(&self, state: &Self::ViewState) -> Gd<N>;
 }
 
-impl<State, N, Children> ElementView<State> for Element<N, Children>
+impl<State, N, Children> ElementView<N, State> for Element<N, Children>
 where
     N: Inherits<Node> + NewAlloc,
     Children: View<State>,
 {
-    fn get_node(&self, state: &Self::ViewState) -> Gd<Node> {
-        state.node.clone().upcast()
+    fn get_node(&self, state: &Self::ViewState) -> Gd<N> {
+        state.node.clone()
     }
 }
 
 // doing this instead of the trait because rust was smelly
 macro_rules! impl_element_view {
-    () => {
-        pub fn attr<Name, Value>(self, name: Name, value: Value) -> Attr<Name, Self>
+    ($node:ident) => {
+        pub fn attr<Name, Value>(self, name: Name, value: Value) -> Attr<$node, Name, Self>
         where
             Name: AsRef<str>,
             Value: ToGodot,
         {
+            use std::marker::PhantomData;
             Attr {
                 inner: self,
                 name,
                 value: value.to_variant(),
+                _p: PhantomData,
             }
         }
-        pub fn on<State, Name, Cb>(self, name: Name, cb: Cb) -> Event<Name, Cb, Self>
+        pub fn on_signal<State, Name, Cb>(
+            self,
+            name: Name,
+            cb: Cb,
+        ) -> OnSignal<$node, Name, Cb, Self>
         where
             Name: AsRef<str>,
             Cb: Fn(&mut State, &[Variant]),
         {
-            Event {
+            use std::marker::PhantomData;
+            OnSignal {
                 inner: self,
                 name,
                 cb,
+                _p: PhantomData,
+            }
+        }
+        pub fn on_mounted<State, Cb>(self, cb: Cb) -> OnMounted<$node, Cb, Self>
+        where
+            Cb: Fn(&mut State, Gd<$node>),
+        {
+            use std::marker::PhantomData;
+            OnMounted {
+                inner: self,
+                cb,
+                _p: PhantomData,
             }
         }
     };
@@ -178,5 +198,5 @@ macro_rules! impl_element_view {
 pub(crate) use impl_element_view;
 
 impl<N, Children> Element<N, Children> {
-    impl_element_view! {}
+    impl_element_view! { N }
 }
