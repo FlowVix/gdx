@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 use godot::{
     builtin::Variant,
     classes::Node,
+    global::godot_print,
     meta::ToGodot,
     obj::{Gd, Inherits, NewAlloc},
 };

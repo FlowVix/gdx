@@ -25,12 +25,12 @@ where
         anchor: &mut Node,
         anchor_type: AnchorType,
     ) -> Self::ViewState {
-        let mut opt_anchor = Node::new_alloc();
-        anchor_type.add(anchor, &opt_anchor);
+        let mut eit_anchor = Node::new_alloc();
+        anchor_type.add(anchor, &eit_anchor);
         let inner_id = ctx.new_structural_id();
         EitherViewState {
             inner: self.as_ref().map_either_with(
-                (ctx, &mut opt_anchor),
+                (ctx, &mut eit_anchor),
                 |(ctx, opt_anchor), v| {
                     ctx.with_id(inner_id, |ctx| v.build(ctx, opt_anchor, AnchorType::Before))
                 },
@@ -38,7 +38,7 @@ where
                     ctx.with_id(inner_id, |ctx| v.build(ctx, opt_anchor, AnchorType::Before))
                 },
             ),
-            anchor: opt_anchor,
+            anchor: eit_anchor,
             id: inner_id,
         }
     }
@@ -56,34 +56,34 @@ where
             state.inner.is_left(),
             "Bruh why are they not the same"
         );
-        let mut opt_anchor = state.anchor.clone();
+        let mut eit_anchor = state.anchor.clone();
         match (self, prev, &mut state.inner) {
             (Left(new), Left(prev), Left(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    new.rebuild(prev, inner, ctx, &mut opt_anchor, AnchorType::Before);
+                    new.rebuild(prev, inner, ctx, &mut eit_anchor, AnchorType::Before);
                 });
             }
             (Right(new), Right(prev), Right(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    new.rebuild(prev, inner, ctx, &mut opt_anchor, AnchorType::Before);
+                    new.rebuild(prev, inner, ctx, &mut eit_anchor, AnchorType::Before);
                 });
             }
             (Right(new), Left(prev), Left(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    prev.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
+                    prev.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before);
                 });
                 state.id = ctx.new_structural_id();
                 state.inner = Right(ctx.with_id(state.id, |ctx| {
-                    new.build(ctx, &mut opt_anchor, AnchorType::Before)
+                    new.build(ctx, &mut eit_anchor, AnchorType::Before)
                 }));
             }
             (Left(new), Right(prev), Right(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    prev.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
+                    prev.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before);
                 });
                 state.id = ctx.new_structural_id();
                 state.inner = Left(ctx.with_id(state.id, |ctx| {
-                    new.build(ctx, &mut opt_anchor, AnchorType::Before)
+                    new.build(ctx, &mut eit_anchor, AnchorType::Before)
                 }));
             }
             _ => unreachable!(),
@@ -102,24 +102,24 @@ where
             state.inner.is_left(),
             "Bruh why are they not the same"
         );
-        let mut opt_anchor = state.anchor.clone();
+        let mut eit_anchor = state.anchor.clone();
 
         match (self, &mut state.inner) {
             (Left(val), Left(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    val.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
+                    val.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before);
                 });
             }
             (Right(val), Right(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    val.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
+                    val.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before);
                 });
             }
             _ => unreachable!(),
         }
 
-        anchor_type.remove(anchor, &opt_anchor);
-        opt_anchor.queue_free();
+        anchor_type.remove(anchor, &eit_anchor);
+        eit_anchor.queue_free();
     }
 
     fn message(

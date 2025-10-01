@@ -63,15 +63,15 @@ where
         anchor: &mut Node,
         anchor_type: AnchorType,
     ) -> AnyViewState {
-        let mut opt_anchor = Node::new_alloc();
-        anchor_type.add(anchor, &opt_anchor);
+        let mut any_anchor = Node::new_alloc();
+        anchor_type.add(anchor, &any_anchor);
         let inner_id = ctx.new_structural_id();
 
         let inner = ctx.with_id(inner_id, |ctx| {
-            self.build(ctx, &mut opt_anchor, AnchorType::Before)
+            self.build(ctx, &mut any_anchor, AnchorType::Before)
         });
         AnyViewState {
-            anchor: opt_anchor,
+            anchor: any_anchor,
             inner: Box::new(inner),
             id: inner_id,
         }
@@ -85,7 +85,7 @@ where
         anchor: &mut Node,
         anchor_type: AnchorType,
     ) {
-        let mut opt_anchor = state.anchor.clone();
+        let mut any_anchor = state.anchor.clone();
         if let Some(prev) = prev.as_any().downcast_ref::<V>() {
             let inner = state
                 .inner
@@ -93,15 +93,15 @@ where
                 .expect("What the hell bro");
 
             ctx.with_id(state.id, |ctx| {
-                self.rebuild(prev, inner, ctx, &mut opt_anchor, AnchorType::Before);
+                self.rebuild(prev, inner, ctx, &mut any_anchor, AnchorType::Before);
             })
         } else {
             ctx.with_id(state.id, |ctx| {
-                prev.dyn_teardown(state, ctx, &mut opt_anchor, AnchorType::Before);
+                prev.dyn_teardown(state, ctx, &mut any_anchor, AnchorType::Before);
             });
             state.id = ctx.new_structural_id();
             let inner = ctx.with_id(state.id, |ctx| {
-                self.build(ctx, &mut opt_anchor, AnchorType::Before)
+                self.build(ctx, &mut any_anchor, AnchorType::Before)
             });
             state.inner = Box::new(inner);
         }
@@ -118,9 +118,9 @@ where
             .inner
             .downcast_mut::<V::ViewState>()
             .expect("What the hell bro");
-        let mut opt_anchor = state.anchor.clone();
+        let mut any_anchor = state.anchor.clone();
         ctx.with_id(state.id, |ctx| {
-            self.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
+            self.teardown(inner, ctx, &mut any_anchor, AnchorType::Before);
         });
     }
 
