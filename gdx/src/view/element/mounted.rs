@@ -4,6 +4,7 @@ use std::{marker::PhantomData, sync::Arc};
 use godot::{
     builtin::{Callable, Variant},
     classes::Node,
+    global::godot_print,
     meta::ToGodot,
     obj::Inherits,
     prelude::Gd,
@@ -39,7 +40,6 @@ where
         anchor_type: AnchorType,
     ) -> Self::ViewState {
         let inner_view_state = self.inner.build(ctx, anchor, anchor_type);
-        let mut node = self.inner.get_node(&inner_view_state);
 
         ctx.msg_queue.lock().push_back(FullMessage {
             msg: Message::Mounted,

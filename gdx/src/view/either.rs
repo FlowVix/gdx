@@ -76,6 +76,7 @@ where
                 state.state = Right(ctx.with_id(inner_id, |ctx| {
                     new.build(ctx, &mut opt_anchor, AnchorType::Before)
                 }));
+                state.id = inner_id;
             }
             (Left(new), Right(prev), Right(inner)) => {
                 ctx.with_id(state.id, |ctx| {
@@ -85,6 +86,7 @@ where
                 state.state = Left(ctx.with_id(inner_id, |ctx| {
                     new.build(ctx, &mut opt_anchor, AnchorType::Before)
                 }));
+                state.id = inner_id;
             }
             _ => unreachable!(),
         }
