@@ -8,7 +8,7 @@ use crate::{AnchorType, Context, Message, MessageResult, View, ViewID};
 
 pub struct EitherViewState<AViewState, BViewState> {
     anchor: Gd<Node>,
-    state: Either<AViewState, BViewState>,
+    inner: Either<AViewState, BViewState>,
     id: ViewID,
 }
 
@@ -29,8 +29,7 @@ where
         anchor_type.add(anchor, &opt_anchor);
         let inner_id = ctx.new_structural_id();
         EitherViewState {
-            anchor: opt_anchor.clone(),
-            state: self.as_ref().map_either_with(
+            inner: self.as_ref().map_either_with(
                 (ctx, &mut opt_anchor),
                 |(ctx, opt_anchor), v| {
                     ctx.with_id(inner_id, |ctx| v.build(ctx, opt_anchor, AnchorType::Before))
@@ -39,6 +38,7 @@ where
                     ctx.with_id(inner_id, |ctx| v.build(ctx, opt_anchor, AnchorType::Before))
                 },
             ),
+            anchor: opt_anchor,
             id: inner_id,
         }
     }
@@ -53,11 +53,11 @@ where
     ) {
         assert_eq!(
             prev.is_left(),
-            state.state.is_left(),
+            state.inner.is_left(),
             "Bruh why are they not the same"
         );
         let mut opt_anchor = state.anchor.clone();
-        match (self, prev, &mut state.state) {
+        match (self, prev, &mut state.inner) {
             (Left(new), Left(prev), Left(inner)) => {
                 ctx.with_id(state.id, |ctx| {
                     new.rebuild(prev, inner, ctx, &mut opt_anchor, AnchorType::Before);
@@ -72,21 +72,19 @@ where
                 ctx.with_id(state.id, |ctx| {
                     prev.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
                 });
-                let inner_id = ctx.new_structural_id();
-                state.state = Right(ctx.with_id(inner_id, |ctx| {
+                state.id = ctx.new_structural_id();
+                state.inner = Right(ctx.with_id(state.id, |ctx| {
                     new.build(ctx, &mut opt_anchor, AnchorType::Before)
                 }));
-                state.id = inner_id;
             }
             (Left(new), Right(prev), Right(inner)) => {
                 ctx.with_id(state.id, |ctx| {
                     prev.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
                 });
-                let inner_id = ctx.new_structural_id();
-                state.state = Left(ctx.with_id(inner_id, |ctx| {
+                state.id = ctx.new_structural_id();
+                state.inner = Left(ctx.with_id(state.id, |ctx| {
                     new.build(ctx, &mut opt_anchor, AnchorType::Before)
                 }));
-                state.id = inner_id;
             }
             _ => unreachable!(),
         }
@@ -101,12 +99,12 @@ where
     ) {
         assert_eq!(
             self.is_left(),
-            state.state.is_left(),
+            state.inner.is_left(),
             "Bruh why are they not the same"
         );
         let mut opt_anchor = state.anchor.clone();
 
-        match (self, &mut state.state) {
+        match (self, &mut state.inner) {
             (Left(val), Left(inner)) => {
                 ctx.with_id(state.id, |ctx| {
                     val.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
@@ -133,11 +131,11 @@ where
     ) -> MessageResult {
         assert_eq!(
             self.is_left(),
-            view_state.state.is_left(),
+            view_state.inner.is_left(),
             "Bruh why are they not the same"
         );
         if let Some((start, rest)) = path.split_first() {
-            match (self, &mut view_state.state) {
+            match (self, &mut view_state.inner) {
                 (Left(val), Left(inner)) => {
                     if *start == view_state.id {
                         val.message(msg, rest, inner, app_state)
@@ -162,10 +160,10 @@ where
     fn collect_nodes(&self, state: &Self::ViewState, nodes: &mut Vec<Gd<Node>>) {
         assert_eq!(
             self.is_left(),
-            state.state.is_left(),
+            state.inner.is_left(),
             "Bruh why are they not the same"
         );
-        match (self, &state.state) {
+        match (self, &state.inner) {
             (Left(val), Left(inner)) => {
                 val.collect_nodes(inner, nodes);
             }

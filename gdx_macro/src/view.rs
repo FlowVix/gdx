@@ -43,6 +43,7 @@ pub enum ViewType {
         bind: Ident,
         body: ViewBody,
     },
+    Dyn(ViewBody),
 }
 
 pub struct Event {
@@ -101,7 +102,7 @@ impl Parse for ElemModifier {
 impl Parse for IfView {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         input.parse::<Token![if]>()?;
-        let cond = input.parse()?;
+        let cond = Expr::parse_without_eager_brace(input)?;
         let inner;
         braced!(inner in input);
         let body = inner.parse()?;
@@ -168,6 +169,12 @@ impl Parse for ViewType {
                 bind,
                 body,
             })
+        } else if input.peek(Token![dyn]) {
+            input.parse::<Token![dyn]>()?;
+            let inner;
+            braced!(inner in input);
+            let body = inner.parse()?;
+            Ok(ViewType::Dyn(body))
         } else {
             let name = input.parse()?;
 
@@ -300,6 +307,10 @@ impl ViewType {
             } => {
                 let body = body.gen_rust();
                 quote! { ::gdx::lens(#parent, #map, |#bind| #body) }
+            }
+            ViewType::Dyn(view_body) => {
+                let body = view_body.gen_rust();
+                quote! { ( Box::new(#body) as Box<dyn ::gdx::AnyView<_>> ) }
             }
         }
     }

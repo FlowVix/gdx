@@ -8,7 +8,7 @@ use crate::{AnchorType, Context, Message, MessageResult, View, ViewID, util::has
 
 pub struct VecViewState<InnerViewState> {
     anchor: Gd<Node>,
-    state: Vec<InnerViewState>,
+    inner: Vec<InnerViewState>,
 }
 
 impl<State, K, Inner> View<State> for Vec<(K, Inner)>
@@ -28,7 +28,7 @@ where
         anchor_type.add(anchor, &opt_anchor);
         VecViewState {
             anchor: opt_anchor.clone(),
-            state: self
+            inner: self
                 .iter()
                 .map(|(k, inner)| {
                     ctx.with_id(ViewID::Key(hash(k)), |ctx| {
@@ -49,12 +49,12 @@ where
     ) {
         assert_eq!(
             prev.len(),
-            state.state.len(),
+            state.inner.len(),
             "Bruh why are they not the same"
         );
         let mut opt_anchor = state.anchor.clone();
         let mut prev_map = state
-            .state
+            .inner
             .drain(..)
             .enumerate()
             .map(|(idx, inner)| {
@@ -75,12 +75,12 @@ where
                 ctx.with_id(ViewID::Key(hash(k)), |ctx| {
                     v.rebuild(prev, &mut inner, ctx, &mut opt_anchor, AnchorType::Before);
                 });
-                state.state.push(inner);
+                state.inner.push(inner);
             } else {
                 let inner = ctx.with_id(ViewID::Key(hash(k)), |ctx| {
                     v.build(ctx, &mut opt_anchor, AnchorType::Before)
                 });
-                state.state.push(inner);
+                state.inner.push(inner);
             }
         }
         for (k, (mut inner, nodes, prev)) in prev_map.drain() {
@@ -102,12 +102,12 @@ where
     ) {
         assert_eq!(
             self.len(),
-            state.state.len(),
+            state.inner.len(),
             "Bruh why are they not the same"
         );
         let mut opt_anchor = state.anchor.clone();
 
-        for ((k, inner), state) in self.iter().zip(&mut state.state) {
+        for ((k, inner), state) in self.iter().zip(&mut state.inner) {
             ctx.with_id(ViewID::Key(hash(k)), |ctx| {
                 inner.teardown(state, ctx, &mut opt_anchor, AnchorType::Before);
             });
@@ -125,11 +125,11 @@ where
     ) -> crate::MessageResult {
         assert_eq!(
             self.len(),
-            view_state.state.len(),
+            view_state.inner.len(),
             "Bruh why are they not the same"
         );
         if let Some((start, rest)) = path.split_first() {
-            for ((k, inner), state) in self.iter().zip(&mut view_state.state) {
+            for ((k, inner), state) in self.iter().zip(&mut view_state.inner) {
                 if *start == ViewID::Key(hash(k)) {
                     return inner.message(msg, rest, state, app_state);
                 }
@@ -146,10 +146,10 @@ where
     fn collect_nodes(&self, state: &Self::ViewState, nodes: &mut Vec<Gd<Node>>) {
         assert_eq!(
             self.len(),
-            state.state.len(),
+            state.inner.len(),
             "Bruh why are they not the same"
         );
-        for ((_, inner), state) in self.iter().zip(&state.state) {
+        for ((_, inner), state) in self.iter().zip(&state.inner) {
             inner.collect_nodes(state, nodes);
         }
     }

@@ -13,6 +13,7 @@ pub use either;
 pub use gdx_macro::view;
 pub use view::{
     AnchorType, View, ViewID,
+    any::{AnyView, AnyViewState},
     either::EitherViewState,
     element::{
         Element, ElementView, ElementViewState,

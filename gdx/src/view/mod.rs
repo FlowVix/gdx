@@ -1,3 +1,4 @@
+pub mod any;
 pub mod either;
 pub mod element;
 pub mod iter;
@@ -84,7 +85,7 @@ pub trait View<State> {
 
 impl<State, Inner> View<State> for Box<Inner>
 where
-    Inner: View<State>,
+    Inner: View<State> + ?Sized,
 {
     type ViewState = Inner::ViewState;
 
