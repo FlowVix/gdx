@@ -1,4 +1,5 @@
 use either::Either::{self, Left, Right};
+use heck::ToUpperCamelCase;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
@@ -19,8 +20,13 @@ pub struct IfView {
 #[allow(clippy::large_enum_variant)]
 pub enum ViewType {
     Element {
-        typ: Ident,
+        name: Ident,
         modifiers: Option<Punctuated<ElemModifier, Token![,]>>,
+        children: Option<ViewBody>,
+    },
+    Component {
+        name: Ident,
+        args: Punctuated<Expr, Token![,]>,
         children: Option<ViewBody>,
     },
     Expr(Expr),
@@ -47,15 +53,19 @@ pub struct Event {
 pub enum ElemModifier {
     Attr(Ident, Expr),
     Event(Event, Expr),
+    ThemeOverride {
+        typ: Ident,
+        name: Ident,
+        value: Expr,
+    },
 }
 
 impl Parse for Event {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let typ = input.parse()?;
-        let arg = if input.peek(token::Paren) {
-            let inner;
-            parenthesized!(inner in input);
-            Some(inner.parse()?)
+        let arg = if input.peek(Token![:]) {
+            input.parse::<Token![:]>()?;
+            Some(input.parse()?)
         } else {
             None
         };
@@ -68,12 +78,20 @@ impl Parse for ElemModifier {
         if input.peek(Token![@]) {
             input.parse::<Token![@]>()?;
             let typ = input.parse()?;
-            input.parse::<Token![:]>()?;
+            input.parse::<Token![=]>()?;
             let value = input.parse()?;
             Ok(ElemModifier::Event(typ, value))
+        } else if input.peek(Token![#]) {
+            input.parse::<Token![#]>()?;
+            let typ = input.parse()?;
+            input.parse::<Token![:]>()?;
+            let name = input.parse()?;
+            input.parse::<Token![=]>()?;
+            let value = input.parse()?;
+            Ok(ElemModifier::ThemeOverride { typ, name, value })
         } else {
             let name = input.parse()?;
-            input.parse::<Token![:]>()?;
+            input.parse::<Token![=]>()?;
             let value = input.parse()?;
             Ok(ElemModifier::Attr(name, value))
         }
@@ -110,10 +128,10 @@ impl Parse for IfView {
 
 impl Parse for ViewType {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        if input.peek(Token![:]) {
-            input.parse::<Token![:]>()?;
-            let expr = input.parse()?;
-            input.parse::<Token![,]>()?;
+        if input.peek(token::Paren) {
+            let inner;
+            parenthesized!(inner in input);
+            let expr = inner.parse()?;
             Ok(ViewType::Expr(expr))
         } else if input.peek(Token![for]) {
             input.parse::<Token![for]>()?;
@@ -151,26 +169,45 @@ impl Parse for ViewType {
                 body,
             })
         } else {
-            let typ = input.parse()?;
-            let modifiers = if input.peek(token::Bracket) {
+            let name = input.parse()?;
+
+            if input.peek(token::Paren) {
                 let inner;
-                bracketed!(inner in input);
-                Some(Punctuated::parse_terminated(&inner)?)
+                parenthesized!(inner in input);
+                let args = Punctuated::parse_terminated(&inner)?;
+                let children = if input.peek(token::Brace) {
+                    let inner;
+                    braced!(inner in input);
+                    Some(inner.parse()?)
+                } else {
+                    None
+                };
+                Ok(ViewType::Component {
+                    name,
+                    args,
+                    children,
+                })
             } else {
-                None
-            };
-            let children = if input.peek(token::Brace) {
-                let inner;
-                braced!(inner in input);
-                Some(inner.parse()?)
-            } else {
-                None
-            };
-            Ok(ViewType::Element {
-                typ,
-                modifiers,
-                children,
-            })
+                let modifiers = if input.peek(token::Bracket) {
+                    let inner;
+                    bracketed!(inner in input);
+                    Some(Punctuated::parse_terminated(&inner)?)
+                } else {
+                    None
+                };
+                let children = if input.peek(token::Brace) {
+                    let inner;
+                    braced!(inner in input);
+                    Some(inner.parse()?)
+                } else {
+                    None
+                };
+                Ok(ViewType::Element {
+                    name,
+                    modifiers,
+                    children,
+                })
+            }
         }
     }
 }
@@ -202,7 +239,7 @@ impl ViewType {
     pub fn gen_rust(&self) -> TokenStream {
         match self {
             ViewType::Element {
-                typ,
+                name: typ,
                 modifiers,
                 children,
             } => {
@@ -223,9 +260,26 @@ impl ViewType {
                             let arg = event.arg.as_ref().map(|v| quote! { stringify!(#v), });
                             out.extend(quote! { .#func_name(#arg #expr) })
                         }
+                        ElemModifier::ThemeOverride { typ, name, value } => {
+                            let typ = Ident::new(
+                                &format!("ThemeOverride{}", typ.to_string().to_upper_camel_case()),
+                                typ.span(),
+                            );
+                            out.extend(
+                                quote! { .theme_override::<::gdx::#typ, _>(stringify!(#name), #value) },
+                            )
+                        }
                     }
                 }
                 out
+            }
+            ViewType::Component {
+                name,
+                args,
+                children,
+            } => {
+                let children = children.as_ref().map(|v| v.gen_rust());
+                quote! { #name(#args, #children) }
             }
             ViewType::Expr(expr) => quote! { #expr },
             ViewType::For {

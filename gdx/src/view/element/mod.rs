@@ -1,6 +1,7 @@
 pub mod attributes;
 pub mod mounted;
 pub mod signal;
+pub mod theme_override;
 
 use std::marker::PhantomData;
 
@@ -12,7 +13,6 @@ use godot::{
 };
 
 use crate::{
-    Attr, OnMounted, OnSignal,
     ctx::{Message, MessageResult},
     view::{AnchorType, View, ViewID},
 };
@@ -152,13 +152,13 @@ where
 // doing this instead of the trait because rust was smelly
 macro_rules! impl_element_view {
     ($node:ident) => {
-        pub fn attr<Name, Value>(self, name: Name, value: Value) -> Attr<$node, Name, Self>
+        pub fn attr<Name, Value>(self, name: Name, value: Value) -> $crate::Attr<$node, Name, Self>
         where
             Name: AsRef<str>,
             Value: ToGodot,
         {
             use std::marker::PhantomData;
-            Attr {
+            $crate::Attr {
                 inner: self,
                 name,
                 value: value.to_variant(),
@@ -169,27 +169,43 @@ macro_rules! impl_element_view {
             self,
             name: Name,
             cb: Cb,
-        ) -> OnSignal<$node, Name, Cb, Self>
+        ) -> $crate::OnSignal<$node, Name, Cb, Self>
         where
             Name: AsRef<str>,
             Cb: Fn(&mut State, &[Variant]),
         {
             use std::marker::PhantomData;
-            OnSignal {
+            $crate::OnSignal {
                 inner: self,
                 name,
                 cb,
                 _p: PhantomData,
             }
         }
-        pub fn on_mounted<State, Cb>(self, cb: Cb) -> OnMounted<$node, Cb, Self>
+        pub fn on_mounted<State, Cb>(self, cb: Cb) -> $crate::OnMounted<$node, Cb, Self>
         where
             Cb: Fn(&mut State, Gd<$node>),
         {
             use std::marker::PhantomData;
-            OnMounted {
+            $crate::OnMounted {
                 inner: self,
                 cb,
+                _p: PhantomData,
+            }
+        }
+        pub fn theme_override<Typ: crate::ThemeOverrideType, Name>(
+            self,
+            name: Name,
+            value: Typ::ValueType,
+        ) -> $crate::ThemeOverride<$node, Typ, Name, Self>
+        where
+            Name: AsRef<str>,
+        {
+            use std::marker::PhantomData;
+            $crate::ThemeOverride {
+                inner: self,
+                name,
+                value,
                 _p: PhantomData,
             }
         }

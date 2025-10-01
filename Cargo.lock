@@ -57,6 +57,7 @@ name = "gdx_macro"
 version = "0.1.0"
 dependencies = [
  "either",
+ "heck",
  "paste",
  "proc-macro2",
  "quote",

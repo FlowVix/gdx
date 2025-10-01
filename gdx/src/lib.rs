@@ -20,6 +20,11 @@ pub use view::{
         el,
         mounted::{OnMounted, OnMountedViewState},
         signal::{OnSignal, OnSignalViewState},
+        theme_override::{
+            ThemeOverride, ThemeOverrideColor, ThemeOverrideConstant, ThemeOverrideFont,
+            ThemeOverrideFontSize, ThemeOverrideIcon, ThemeOverrideStylebox, ThemeOverrideType,
+            ThemeOverrideViewState,
+        },
     },
     iter::VecViewState,
     lens::{Lens, lens},

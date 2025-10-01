@@ -1,15 +1,8 @@
-use crate::OnMounted;
-use godot::{
-    builtin::{StringName, Variant},
-    classes::Node,
-    meta::ToGodot,
-    obj::Inherits,
-    prelude::Gd,
-};
+use godot::{builtin::Variant, classes::Node, meta::ToGodot, obj::Inherits, prelude::Gd};
 use std::marker::PhantomData;
 
 use crate::{
-    ElementView, OnSignal, ViewID,
+    ElementView, ViewID,
     ctx::{Message, MessageResult},
     view::{AnchorType, View, element::impl_element_view},
 };

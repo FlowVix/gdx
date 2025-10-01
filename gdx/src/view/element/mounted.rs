@@ -1,17 +1,9 @@
-use crate::OnSignal;
-use std::{marker::PhantomData, sync::Arc};
+use std::marker::PhantomData;
 
-use godot::{
-    builtin::{Callable, Variant},
-    classes::Node,
-    global::godot_print,
-    meta::ToGodot,
-    obj::Inherits,
-    prelude::Gd,
-};
+use godot::{builtin::Variant, classes::Node, meta::ToGodot, obj::Inherits, prelude::Gd};
 
 use crate::{
-    AnchorType, Attr, ElementView, Message, MessageResult, View, ViewID, ctx::FullMessage,
+    AnchorType, ElementView, Message, MessageResult, View, ctx::FullMessage,
     view::element::impl_element_view,
 };
 

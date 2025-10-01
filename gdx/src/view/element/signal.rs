@@ -1,4 +1,3 @@
-use crate::OnMounted;
 use godot::{
     builtin::{Callable, Variant},
     classes::Node,
@@ -9,7 +8,7 @@ use godot::{
 use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
-    AnchorType, Attr, ElementView, Message, MessageResult, View, ViewID, ctx::FullMessage,
+    AnchorType, ElementView, Message, MessageResult, View, ViewID, ctx::FullMessage,
     view::element::impl_element_view,
 };
 
