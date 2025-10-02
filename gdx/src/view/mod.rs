@@ -2,7 +2,7 @@ pub mod any;
 pub mod either;
 pub mod element;
 pub mod iter;
-pub mod lens;
+pub mod map;
 pub mod option;
 
 use std::ops::Deref;

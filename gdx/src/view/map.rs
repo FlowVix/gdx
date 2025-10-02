@@ -1,14 +1,14 @@
 use crate::View;
 
-pub struct Lens<Inner, Map> {
+pub struct MapState<Inner, MapFn> {
     inner: Inner,
-    map_fn: Map,
+    map_fn: MapFn,
 }
 
-impl<ParentState, ChildState, Inner, Map> View<ParentState> for Lens<Inner, Map>
+impl<ParentState, ChildState, Inner, MapFn> View<ParentState> for MapState<Inner, MapFn>
 where
     Inner: View<ChildState>,
-    Map: Fn(&mut ParentState) -> &mut ChildState,
+    MapFn: Fn(&mut ParentState) -> &mut ChildState,
 {
     type ViewState = Inner::ViewState;
 
@@ -63,11 +63,24 @@ where
     }
 }
 
+pub fn map<ParentState, ChildState, MapFn, Inner>(
+    view: Inner,
+    map_fn: MapFn,
+) -> MapState<Inner, MapFn>
+where
+    MapFn: Fn(&mut ParentState) -> &mut ChildState,
+    Inner: View<ChildState>,
+{
+    MapState {
+        inner: view,
+        map_fn,
+    }
+}
 pub fn lens<ParentState, ChildState, MapFn, ViewFn, Inner>(
     state: &mut ParentState,
     map_fn: MapFn,
     view_fn: ViewFn,
-) -> Lens<Inner, MapFn>
+) -> MapState<Inner, MapFn>
 where
     MapFn: Fn(&mut ParentState) -> &mut ChildState,
     ViewFn: FnOnce(&mut ChildState) -> Inner,
@@ -75,5 +88,5 @@ where
 {
     let child_state = map_fn(state);
     let inner = view_fn(child_state);
-    Lens { inner, map_fn }
+    MapState { inner, map_fn }
 }

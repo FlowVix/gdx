@@ -2,7 +2,7 @@ use godot::{
     builtin::{Callable, Variant},
     classes::Node,
     meta::ToGodot,
-    obj::Inherits,
+    obj::{Inherits, NewAlloc},
     prelude::Gd,
 };
 use std::{marker::PhantomData, sync::Arc};
@@ -28,7 +28,7 @@ impl<N, State, Name, Cb, Inner> View<State> for OnSignal<N, Name, Cb, Inner>
 where
     Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,
-    Cb: Fn(&mut State, &[Variant]),
+    Cb: Fn(&mut State, &[Variant], Gd<N>),
     N: Inherits<Node>,
 {
     type ViewState = OnSignalViewState<Inner::ViewState>;
@@ -121,7 +121,8 @@ where
             match msg {
                 Message::Signal { ref name, ref args } => {
                     if **name == *self.name.as_ref() {
-                        (self.cb)(app_state, args);
+                        let mut node = self.get_node(view_state);
+                        (self.cb)(app_state, args, node);
                         return MessageResult::Success;
                     }
                 }
@@ -141,7 +142,7 @@ impl<N, State, Name, Cb, Inner> ElementView<N, State> for OnSignal<N, Name, Cb, 
 where
     Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,
-    Cb: Fn(&mut State, &[Variant]),
+    Cb: Fn(&mut State, &[Variant], Gd<N>),
     N: Inherits<Node>,
 {
     fn get_node(&self, state: &Self::ViewState) -> Gd<N> {

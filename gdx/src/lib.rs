@@ -31,6 +31,6 @@ pub use view::{
         },
     },
     iter::VecViewState,
-    lens::{Lens, lens},
+    map::{MapState, lens, map},
     option::OptionViewState,
 };

@@ -43,6 +43,10 @@ pub enum ViewType {
         bind: Ident,
         body: ViewBody,
     },
+    Map {
+        map: Expr,
+        body: ViewBody,
+    },
     Dyn(ViewBody),
 }
 
@@ -155,20 +159,28 @@ impl Parse for ViewType {
             Ok(ViewType::If(input.parse()?))
         } else if input.peek(Token![where]) {
             input.parse::<Token![where]>()?;
-            let parent = input.parse()?;
-            input.parse::<Token![in]>()?;
-            let map = input.parse()?;
-            input.parse::<Token![become]>()?;
-            let bind = input.parse()?;
-            let inner;
-            braced!(inner in input);
-            let body = inner.parse()?;
-            Ok(ViewType::Lens {
-                parent,
-                map,
-                bind,
-                body,
-            })
+            let expr = input.parse()?;
+
+            if input.peek(Token![in]) {
+                input.parse::<Token![in]>()?;
+                let map = input.parse()?;
+                input.parse::<Token![become]>()?;
+                let bind = input.parse()?;
+                let inner;
+                braced!(inner in input);
+                let body = inner.parse()?;
+                Ok(ViewType::Lens {
+                    parent: expr,
+                    map,
+                    bind,
+                    body,
+                })
+            } else {
+                let inner;
+                braced!(inner in input);
+                let body = inner.parse()?;
+                Ok(ViewType::Map { map: expr, body })
+            }
         } else if input.peek(Token![dyn]) {
             input.parse::<Token![dyn]>()?;
             let inner;
@@ -307,6 +319,10 @@ impl ViewType {
             } => {
                 let body = body.gen_rust();
                 quote! { ::gdx::lens(#parent, #map, |#bind| #body) }
+            }
+            ViewType::Map { map, body } => {
+                let body = body.gen_rust();
+                quote! { ::gdx::map(#body, #map) }
             }
             ViewType::Dyn(view_body) => {
                 let body = view_body.gen_rust();

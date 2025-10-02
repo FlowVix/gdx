@@ -177,7 +177,7 @@ macro_rules! impl_element_view {
         ) -> $crate::OnSignal<$node, Name, Cb, Self>
         where
             Name: AsRef<str>,
-            Cb: Fn(&mut State, &[Variant]),
+            Cb: Fn(&mut State, &[Variant], Gd<$node>),
             $node: godot::prelude::Inherits<godot::prelude::Node>,
         {
             use std::marker::PhantomData;
