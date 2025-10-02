@@ -1,6 +1,9 @@
 pub mod attr;
+pub mod on_build;
 pub mod on_mounted;
+pub mod on_rebuild;
 pub mod on_signal;
+pub mod on_teardown;
 pub mod theme_override;
 
 use std::marker::PhantomData;
@@ -157,6 +160,7 @@ macro_rules! impl_element_view {
         where
             Name: AsRef<str>,
             Value: ToGodot,
+            $node: godot::prelude::Inherits<godot::prelude::Node>,
         {
             use std::marker::PhantomData;
             $crate::Attr {
@@ -174,6 +178,7 @@ macro_rules! impl_element_view {
         where
             Name: AsRef<str>,
             Cb: Fn(&mut State, &[Variant]),
+            $node: godot::prelude::Inherits<godot::prelude::Node>,
         {
             use std::marker::PhantomData;
             $crate::OnSignal {
@@ -186,9 +191,46 @@ macro_rules! impl_element_view {
         pub fn on_mounted<State, Cb>(self, cb: Cb) -> $crate::OnMounted<$node, Cb, Self>
         where
             Cb: Fn(&mut State, Gd<$node>),
+            $node: godot::prelude::Inherits<godot::prelude::Node>,
         {
             use std::marker::PhantomData;
             $crate::OnMounted {
+                inner: self,
+                cb,
+                _p: PhantomData,
+            }
+        }
+        pub fn on_build<Cb>(self, cb: Cb) -> $crate::OnBuild<$node, Cb, Self>
+        where
+            Cb: Fn(Gd<$node>),
+            $node: godot::prelude::Inherits<godot::prelude::Node>,
+        {
+            use std::marker::PhantomData;
+            $crate::OnBuild {
+                inner: self,
+                cb,
+                _p: PhantomData,
+            }
+        }
+        pub fn on_rebuild<Cb>(self, cb: Cb) -> $crate::OnRebuild<$node, Cb, Self>
+        where
+            Cb: Fn(Gd<$node>),
+            $node: godot::prelude::Inherits<godot::prelude::Node>,
+        {
+            use std::marker::PhantomData;
+            $crate::OnRebuild {
+                inner: self,
+                cb,
+                _p: PhantomData,
+            }
+        }
+        pub fn on_teardown<Cb>(self, cb: Cb) -> $crate::OnTeardown<$node, Cb, Self>
+        where
+            Cb: Fn(Gd<$node>),
+            $node: godot::prelude::Inherits<godot::prelude::Node>,
+        {
+            use std::marker::PhantomData;
+            $crate::OnTeardown {
                 inner: self,
                 cb,
                 _p: PhantomData,
@@ -201,6 +243,7 @@ macro_rules! impl_element_view {
         ) -> $crate::ThemeOverride<$node, Typ, Name, Self>
         where
             Name: AsRef<str>,
+            $node: godot::prelude::Inherits<godot::prelude::Node>,
         {
             use std::marker::PhantomData;
             $crate::ThemeOverride {

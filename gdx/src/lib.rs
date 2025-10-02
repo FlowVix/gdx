@@ -19,8 +19,11 @@ pub use view::{
         Element, ElementView, ElementViewState,
         attr::{Attr, AttrViewState},
         el,
+        on_build::{OnBuild, OnBuildViewState},
         on_mounted::{OnMounted, OnMountedViewState},
+        on_rebuild::{OnRebuild, OnRebuildViewState},
         on_signal::{OnSignal, OnSignalViewState},
+        on_teardown::{OnTeardown, OnTeardownViewState},
         theme_override::{
             ThemeOverride, ThemeOverrideColor, ThemeOverrideConstant, ThemeOverrideFont,
             ThemeOverrideFontSize, ThemeOverrideIcon, ThemeOverrideStylebox, ThemeOverrideType,
