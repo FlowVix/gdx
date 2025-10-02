@@ -17,10 +17,10 @@ pub use view::{
     either::EitherViewState,
     element::{
         Element, ElementView, ElementViewState,
-        attributes::{Attr, AttrViewState},
+        attr::{Attr, AttrViewState},
         el,
-        mounted::{OnMounted, OnMountedViewState},
-        signal::{OnSignal, OnSignalViewState},
+        on_mounted::{OnMounted, OnMountedViewState},
+        on_signal::{OnSignal, OnSignalViewState},
         theme_override::{
             ThemeOverride, ThemeOverrideColor, ThemeOverrideConstant, ThemeOverrideFont,
             ThemeOverrideFontSize, ThemeOverrideIcon, ThemeOverrideStylebox, ThemeOverrideType,

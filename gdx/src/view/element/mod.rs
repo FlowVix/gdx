@@ -1,6 +1,6 @@
-pub mod attributes;
-pub mod mounted;
-pub mod signal;
+pub mod attr;
+pub mod on_mounted;
+pub mod on_signal;
 pub mod theme_override;
 
 use std::marker::PhantomData;
