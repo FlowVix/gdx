@@ -4,7 +4,7 @@ use godot::{
     obj::{Gd, NewAlloc},
 };
 
-use crate::{AnchorType, Context, Message, MessageResult, View, ViewID};
+use crate::{AnchorType, Context, Message, MessageResult, View, ViewID, view::ArgTuple};
 
 pub struct EitherViewState<AViewState, BViewState> {
     anchor: Gd<Node>,
@@ -12,7 +12,7 @@ pub struct EitherViewState<AViewState, BViewState> {
     id: ViewID,
 }
 
-impl<State, A, B> View<State> for Either<A, B>
+impl<State: ArgTuple, A, B> View<State> for Either<A, B>
 where
     A: View<State>,
     B: View<State>,

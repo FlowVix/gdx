@@ -3,8 +3,9 @@ use std::marker::PhantomData;
 use godot::{builtin::Variant, classes::Node, meta::ToGodot, obj::Inherits, prelude::Gd};
 
 use crate::{
-    AnchorType, ElementView, Message, MessageResult, View, ctx::FullMessage,
-    view::element::impl_element_view,
+    AnchorType, ElementView, Message, MessageResult, View,
+    ctx::FullMessage,
+    view::{ArgTuple, element::impl_element_view},
 };
 
 pub struct OnTeardown<N, Cb, Inner> {
@@ -17,7 +18,7 @@ pub struct OnTeardownViewState<InnerViewState> {
     inner_view_state: InnerViewState,
 }
 
-impl<N, State, Cb, Inner> View<State> for OnTeardown<N, Cb, Inner>
+impl<N, State: ArgTuple, Cb, Inner> View<State> for OnTeardown<N, Cb, Inner>
 where
     Inner: ElementView<N, State>,
     Cb: Fn(Gd<N>),
@@ -83,7 +84,7 @@ where
     }
 }
 
-impl<N, State, Cb, Inner> ElementView<N, State> for OnTeardown<N, Cb, Inner>
+impl<N, State: ArgTuple, Cb, Inner> ElementView<N, State> for OnTeardown<N, Cb, Inner>
 where
     Inner: ElementView<N, State>,
     Cb: Fn(Gd<N>),

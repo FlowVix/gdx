@@ -18,7 +18,7 @@ use godot::{
 
 use crate::{
     ctx::{Message, MessageResult},
-    view::{AnchorType, View, ViewID},
+    view::{AnchorType, ArgTuple, View, ViewID},
 };
 
 pub struct Element<N, Children> {
@@ -47,7 +47,7 @@ pub struct ElementViewState<N: Inherits<Node>, ChildViewState> {
     child_view_state: ChildViewState,
 }
 
-impl<State, N, Children> View<State> for Element<N, Children>
+impl<State: ArgTuple, N, Children> View<State> for Element<N, Children>
 where
     N: Inherits<Node> + NewAlloc,
     Children: View<State>,
@@ -139,11 +139,11 @@ where
     }
 }
 
-pub trait ElementView<N: Inherits<Node>, State>: View<State> + Sized {
+pub trait ElementView<N: Inherits<Node>, State: ArgTuple>: View<State> + Sized {
     fn get_node(&self, state: &Self::ViewState) -> Gd<N>;
 }
 
-impl<State, N, Children> ElementView<N, State> for Element<N, Children>
+impl<State: ArgTuple, N, Children> ElementView<N, State> for Element<N, Children>
 where
     N: Inherits<Node> + NewAlloc,
     Children: View<State>,

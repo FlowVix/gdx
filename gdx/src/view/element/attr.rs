@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use crate::{
     ElementView, ViewID,
     ctx::{Message, MessageResult},
-    view::{AnchorType, View, element::impl_element_view},
+    view::{AnchorType, ArgTuple, View, element::impl_element_view},
 };
 
 pub struct Attr<N, Name, Inner> {
@@ -19,7 +19,7 @@ pub struct AttrViewState<InnerViewState> {
     inner_view_state: InnerViewState,
 }
 
-impl<State, N, Name, Inner> View<State> for Attr<N, Name, Inner>
+impl<State: ArgTuple, N, Name, Inner> View<State> for Attr<N, Name, Inner>
 where
     Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,
@@ -94,7 +94,7 @@ where
     }
 }
 
-impl<State, N, Name, Inner> ElementView<N, State> for Attr<N, Name, Inner>
+impl<State: ArgTuple, N, Name, Inner> ElementView<N, State> for Attr<N, Name, Inner>
 where
     Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,

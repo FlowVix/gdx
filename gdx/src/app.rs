@@ -7,9 +7,12 @@ use godot::{
 };
 use parking_lot::Mutex;
 
-use crate::{Context, View, view::AnchorType};
+use crate::{
+    Context, View,
+    view::{AnchorType, ArgTuple},
+};
 
-pub struct GDXApp<State, AppView: View<State>, AppFn: FnMut(&mut State) -> AppView> {
+pub struct GDXApp<State: ArgTuple, AppView: View<State>, AppFn: FnMut(&mut State) -> AppView> {
     state: State,
     view: Option<(AppView, AppView::ViewState)>,
     app_fn: AppFn,
@@ -20,7 +23,7 @@ pub struct GDXApp<State, AppView: View<State>, AppFn: FnMut(&mut State) -> AppVi
     _p: PhantomData<AppView>,
 }
 
-impl<State, AppView, AppFn> GDXApp<State, AppView, AppFn>
+impl<State: ArgTuple, AppView, AppFn> GDXApp<State, AppView, AppFn>
 where
     AppView: View<State>,
     AppFn: FnMut(&mut State) -> AppView,
@@ -48,7 +51,7 @@ pub trait App {
     fn run(&mut self);
 }
 
-impl<State, AppView, AppFn> App for GDXApp<State, AppView, AppFn>
+impl<State: ArgTuple, AppView, AppFn> App for GDXApp<State, AppView, AppFn>
 where
     AppView: View<State>,
     AppFn: FnMut(&mut State) -> AppView,

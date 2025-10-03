@@ -1,14 +1,21 @@
-use crate::View;
+use std::marker::PhantomData;
 
-pub struct MapState<Inner, MapFn> {
+use gdx_macro::impl_arg_tuple;
+use replace_with::replace_with_or_abort;
+
+use crate::{View, view::ArgTuple};
+
+pub struct MapState<Inner, MapFn, ChildState> {
     inner: Inner,
     map_fn: MapFn,
+    _p: PhantomData<ChildState>,
 }
 
-impl<ParentState, ChildState, Inner, MapFn> View<ParentState> for MapState<Inner, MapFn>
+impl<ParentState: ArgTuple, ChildState: ArgTuple, Inner, MapFn> View<ParentState>
+    for MapState<Inner, MapFn, ChildState>
 where
     Inner: View<ChildState>,
-    MapFn: Fn(&mut ParentState) -> &mut ChildState,
+    MapFn: Fn(&mut ParentState) -> ChildState::Ref<'_>,
 {
     type ViewState = Inner::ViewState;
 
@@ -50,8 +57,9 @@ where
         view_state: &mut Self::ViewState,
         app_state: &mut ParentState,
     ) -> crate::MessageResult {
-        self.inner
-            .message(msg, path, view_state, (self.map_fn)(app_state))
+        ArgTuple::extract_call((self.map_fn)(app_state), |child| {
+            self.inner.message(msg, path, view_state, child)
+        })
     }
 
     fn collect_nodes(
@@ -63,30 +71,35 @@ where
     }
 }
 
-pub fn map<ParentState, ChildState, MapFn, Inner>(
+pub fn map<ParentState: ArgTuple, ChildState: ArgTuple, MapFn, Inner>(
     view: Inner,
     map_fn: MapFn,
-) -> MapState<Inner, MapFn>
+) -> MapState<Inner, MapFn, ChildState>
 where
-    MapFn: Fn(&mut ParentState) -> &mut ChildState,
+    MapFn: Fn(&mut ParentState) -> ChildState::Ref<'_>,
     Inner: View<ChildState>,
 {
     MapState {
         inner: view,
         map_fn,
+        _p: PhantomData,
     }
 }
-pub fn lens<ParentState, ChildState, MapFn, ViewFn, Inner>(
+pub fn lens<ParentState: ArgTuple, ChildState: ArgTuple, MapFn, ViewFn, Inner>(
     state: &mut ParentState,
     map_fn: MapFn,
     view_fn: ViewFn,
-) -> MapState<Inner, MapFn>
+) -> MapState<Inner, MapFn, ChildState>
 where
-    MapFn: Fn(&mut ParentState) -> &mut ChildState,
+    MapFn: Fn(&mut ParentState) -> ChildState::Ref<'_>,
     ViewFn: FnOnce(&mut ChildState) -> Inner,
     Inner: View<ChildState>,
 {
     let child_state = map_fn(state);
-    let inner = view_fn(child_state);
-    MapState { inner, map_fn }
+    let inner = ArgTuple::extract_call(child_state, |v| view_fn(v));
+    MapState {
+        inner,
+        map_fn,
+        _p: PhantomData,
+    }
 }

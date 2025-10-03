@@ -3,14 +3,14 @@ use godot::{
     obj::{Gd, NewAlloc},
 };
 
-use crate::{AnchorType, Context, Message, MessageResult, View, ViewID};
+use crate::{AnchorType, Context, Message, MessageResult, View, ViewID, view::ArgTuple};
 
 pub struct OptionViewState<InnerViewState> {
     anchor: Gd<Node>,
     inner: Option<(InnerViewState, ViewID)>,
 }
 
-impl<State, Inner> View<State> for Option<Inner>
+impl<State: ArgTuple, Inner> View<State> for Option<Inner>
 where
     Inner: View<State>,
 {

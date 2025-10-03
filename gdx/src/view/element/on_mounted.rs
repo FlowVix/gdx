@@ -3,8 +3,9 @@ use std::marker::PhantomData;
 use godot::{builtin::Variant, classes::Node, meta::ToGodot, obj::Inherits, prelude::Gd};
 
 use crate::{
-    AnchorType, ElementView, Message, MessageResult, View, ctx::FullMessage,
-    view::element::impl_element_view,
+    AnchorType, ElementView, Message, MessageResult, View,
+    ctx::FullMessage,
+    view::{ArgTuple, element::impl_element_view},
 };
 
 pub struct OnMounted<N, Cb, Inner> {
@@ -17,7 +18,7 @@ pub struct OnMountedViewState<InnerViewState> {
     inner_view_state: InnerViewState,
 }
 
-impl<N, State, Cb, Inner> View<State> for OnMounted<N, Cb, Inner>
+impl<N, State: ArgTuple, Cb, Inner> View<State> for OnMounted<N, Cb, Inner>
 where
     Inner: ElementView<N, State>,
     Cb: Fn(&mut State, Gd<N>),
@@ -95,7 +96,7 @@ where
     }
 }
 
-impl<N, State, Cb, Inner> ElementView<N, State> for OnMounted<N, Cb, Inner>
+impl<N, State: ArgTuple, Cb, Inner> ElementView<N, State> for OnMounted<N, Cb, Inner>
 where
     Inner: ElementView<N, State>,
     Cb: Fn(&mut State, Gd<N>),

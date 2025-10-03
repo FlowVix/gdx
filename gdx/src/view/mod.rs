@@ -5,9 +5,11 @@ pub mod iter;
 pub mod map;
 pub mod option;
 
+use replace_with::replace_with_or_abort;
 use std::ops::Deref;
 use std::{collections::HashMap, hash::Hash};
 
+use gdx_macro::impl_arg_tuple;
 use godot::{
     classes::Node,
     meta::AsArg,
@@ -48,7 +50,17 @@ impl AnchorType {
     }
 }
 
-pub trait View<State> {
+pub trait ArgTuple {
+    type Ref<'a>
+    where
+        Self: 'a;
+
+    fn extract_call<'a, R>(r: Self::Ref<'a>, f: impl FnOnce(&mut Self) -> R) -> R;
+}
+
+impl_arg_tuple! {}
+
+pub trait View<State: ArgTuple> {
     type ViewState;
 
     fn build(
@@ -83,7 +95,7 @@ pub trait View<State> {
     fn collect_nodes(&self, state: &Self::ViewState, nodes: &mut Vec<Gd<Node>>);
 }
 
-impl<State, Inner> View<State> for Box<Inner>
+impl<State: ArgTuple, Inner> View<State> for Box<Inner>
 where
     Inner: View<State> + ?Sized,
 {
@@ -137,7 +149,7 @@ where
 macro_rules! tuple_impl {
     ($($v:literal)*) => {
         paste::paste! {
-            impl<State, $( [< V $v >] ,)*> View<State> for ($( [< V $v >] ,)*) where $( [< V $v >] : View<State>,)* {
+            impl<State: ArgTuple, $( [< V $v >] ,)*> View<State> for ($( [< V $v >] ,)*) where $( [< V $v >] : View<State>,)* {
                 type ViewState = ($( ([<V $v>]::ViewState, ViewID), )*);
 
                 #[allow(clippy::unused_unit)]

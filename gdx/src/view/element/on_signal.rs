@@ -8,8 +8,9 @@ use godot::{
 use std::{marker::PhantomData, sync::Arc};
 
 use crate::{
-    AnchorType, ElementView, Message, MessageResult, View, ViewID, ctx::FullMessage,
-    view::element::impl_element_view,
+    AnchorType, ElementView, Message, MessageResult, View, ViewID,
+    ctx::FullMessage,
+    view::{ArgTuple, element::impl_element_view},
 };
 
 pub struct OnSignal<N, Name, Cb, Inner> {
@@ -24,7 +25,7 @@ pub struct OnSignalViewState<InnerViewState> {
     inner_view_state: InnerViewState,
 }
 
-impl<N, State, Name, Cb, Inner> View<State> for OnSignal<N, Name, Cb, Inner>
+impl<N, State: ArgTuple, Name, Cb, Inner> View<State> for OnSignal<N, Name, Cb, Inner>
 where
     Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,
@@ -138,7 +139,7 @@ where
     }
 }
 
-impl<N, State, Name, Cb, Inner> ElementView<N, State> for OnSignal<N, Name, Cb, Inner>
+impl<N, State: ArgTuple, Name, Cb, Inner> ElementView<N, State> for OnSignal<N, Name, Cb, Inner>
 where
     Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,

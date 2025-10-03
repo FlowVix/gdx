@@ -10,7 +10,7 @@ use std::marker::PhantomData;
 use crate::{
     ElementView, ViewID,
     ctx::{Message, MessageResult},
-    view::{AnchorType, View, element::impl_element_view},
+    view::{AnchorType, ArgTuple, View, element::impl_element_view},
 };
 
 macro_rules! theme_override_types {
@@ -63,7 +63,7 @@ pub struct ThemeOverrideViewState<InnerViewState> {
     inner_view_state: InnerViewState,
 }
 
-impl<State, N, Typ, Name, Inner> View<State> for ThemeOverride<N, Typ, Name, Inner>
+impl<State: ArgTuple, N, Typ, Name, Inner> View<State> for ThemeOverride<N, Typ, Name, Inner>
 where
     Inner: ElementView<N, State>,
     Typ: ThemeOverrideType,
@@ -134,7 +134,8 @@ where
     }
 }
 
-impl<State, N, Typ, Name, Inner> ElementView<N, State> for ThemeOverride<N, Typ, Name, Inner>
+impl<State: ArgTuple, N, Typ, Name, Inner> ElementView<N, State>
+    for ThemeOverride<N, Typ, Name, Inner>
 where
     Inner: ElementView<N, State>,
     Typ: ThemeOverrideType,

@@ -5,9 +5,9 @@ use godot::{
     obj::{Gd, NewAlloc},
 };
 
-use crate::{AnchorType, Context, Message, MessageResult, View, ViewID};
+use crate::{AnchorType, Context, Message, MessageResult, View, ViewID, view::ArgTuple};
 
-pub trait AnyView<State> {
+pub trait AnyView<State: ArgTuple> {
     fn as_any(&self) -> &dyn Any;
     fn dyn_build(
         &self,
@@ -48,7 +48,7 @@ pub struct AnyViewState {
 
 // MARK: AnyView for View
 
-impl<State, V> AnyView<State> for V
+impl<State: ArgTuple, V> AnyView<State> for V
 where
     V: View<State> + 'static,
     V::ViewState: 'static,
@@ -159,7 +159,7 @@ where
 
 macro_rules! dyn_anyview_impl {
     ($generic:ident, $($who:tt)*) => {
-        impl<$generic> View<$generic> for $($who)* {
+        impl<$generic: ArgTuple> View<$generic> for $($who)* {
             type ViewState = AnyViewState;
 
             fn build(

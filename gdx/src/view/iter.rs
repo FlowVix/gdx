@@ -4,14 +4,16 @@ use godot::{
 };
 use std::{collections::HashMap, hash::Hash};
 
-use crate::{AnchorType, Context, Message, MessageResult, View, ViewID, util::hash};
+use crate::{
+    AnchorType, Context, Message, MessageResult, View, ViewID, util::hash, view::ArgTuple,
+};
 
 pub struct VecViewState<InnerViewState> {
     anchor: Gd<Node>,
     inner: Vec<InnerViewState>,
 }
 
-impl<State, K, Inner> View<State> for Vec<(K, Inner)>
+impl<State: ArgTuple, K, Inner> View<State> for Vec<(K, Inner)>
 where
     Inner: View<State>,
     K: Hash + Eq,
