@@ -25,6 +25,7 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: super::AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState {
         let mut vec_anchor = Node::new_alloc();
         anchor_type.add(anchor, &vec_anchor);
@@ -34,7 +35,7 @@ where
                 .iter()
                 .map(|(k, inner)| {
                     ctx.with_id(ViewID::Key(hash(k)), |ctx| {
-                        inner.build(ctx, &mut vec_anchor, AnchorType::Before)
+                        inner.build(ctx, &mut vec_anchor, AnchorType::Before, app_state)
                     })
                 })
                 .collect(),
@@ -48,6 +49,7 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: super::AnchorType,
+        app_state: &mut State,
     ) {
         assert_eq!(
             prev.len(),
@@ -78,12 +80,19 @@ where
                     move_idx += 1;
                 }
                 ctx.with_id(ViewID::Key(hash(k)), |ctx| {
-                    v.rebuild(prev, &mut inner, ctx, &mut vec_anchor, AnchorType::Before);
+                    v.rebuild(
+                        prev,
+                        &mut inner,
+                        ctx,
+                        &mut vec_anchor,
+                        AnchorType::Before,
+                        app_state,
+                    );
                 });
                 state.inner.push(inner);
             } else {
                 let inner = ctx.with_id(ViewID::Key(hash(k)), |ctx| {
-                    v.build(ctx, &mut vec_anchor, AnchorType::Before)
+                    v.build(ctx, &mut vec_anchor, AnchorType::Before, app_state)
                 });
                 let mut nodes = vec![];
                 v.collect_nodes(&inner, &mut nodes);
@@ -96,7 +105,13 @@ where
         }
         for (k, (mut inner, _, prev)) in prev_map.drain() {
             ctx.with_id(ViewID::Key(hash(k)), |ctx| {
-                prev.teardown(&mut inner, ctx, &mut vec_anchor, AnchorType::Before);
+                prev.teardown(
+                    &mut inner,
+                    ctx,
+                    &mut vec_anchor,
+                    AnchorType::Before,
+                    app_state,
+                );
             });
         }
     }
@@ -107,6 +122,7 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: super::AnchorType,
+        app_state: &mut State,
     ) {
         assert_eq!(
             self.len(),
@@ -117,7 +133,7 @@ where
 
         for ((k, inner), state) in self.iter().zip(&mut state.inner) {
             ctx.with_id(ViewID::Key(hash(k)), |ctx| {
-                inner.teardown(state, ctx, &mut vec_anchor, AnchorType::Before);
+                inner.teardown(state, ctx, &mut vec_anchor, AnchorType::Before, app_state);
             });
         }
         anchor_type.remove(anchor, &vec_anchor);

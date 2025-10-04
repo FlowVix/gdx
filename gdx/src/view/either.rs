@@ -24,18 +24,23 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState {
         let mut eit_anchor = Node::new_alloc();
         anchor_type.add(anchor, &eit_anchor);
         let inner_id = ctx.new_structural_id();
         EitherViewState {
             inner: self.as_ref().map_either_with(
-                (ctx, &mut eit_anchor),
-                |(ctx, opt_anchor), v| {
-                    ctx.with_id(inner_id, |ctx| v.build(ctx, opt_anchor, AnchorType::Before))
+                (ctx, &mut eit_anchor, app_state),
+                |(ctx, opt_anchor, app_state), v| {
+                    ctx.with_id(inner_id, |ctx| {
+                        v.build(ctx, opt_anchor, AnchorType::Before, app_state)
+                    })
                 },
-                |(ctx, opt_anchor), v| {
-                    ctx.with_id(inner_id, |ctx| v.build(ctx, opt_anchor, AnchorType::Before))
+                |(ctx, opt_anchor, app_state), v| {
+                    ctx.with_id(inner_id, |ctx| {
+                        v.build(ctx, opt_anchor, AnchorType::Before, app_state)
+                    })
                 },
             ),
             anchor: eit_anchor,
@@ -50,6 +55,7 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         assert_eq!(
             prev.is_left(),
@@ -60,30 +66,44 @@ where
         match (self, prev, &mut state.inner) {
             (Left(new), Left(prev), Left(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    new.rebuild(prev, inner, ctx, &mut eit_anchor, AnchorType::Before);
+                    new.rebuild(
+                        prev,
+                        inner,
+                        ctx,
+                        &mut eit_anchor,
+                        AnchorType::Before,
+                        app_state,
+                    );
                 });
             }
             (Right(new), Right(prev), Right(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    new.rebuild(prev, inner, ctx, &mut eit_anchor, AnchorType::Before);
+                    new.rebuild(
+                        prev,
+                        inner,
+                        ctx,
+                        &mut eit_anchor,
+                        AnchorType::Before,
+                        app_state,
+                    );
                 });
             }
             (Right(new), Left(prev), Left(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    prev.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before);
+                    prev.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before, app_state);
                 });
                 state.id = ctx.new_structural_id();
                 state.inner = Right(ctx.with_id(state.id, |ctx| {
-                    new.build(ctx, &mut eit_anchor, AnchorType::Before)
+                    new.build(ctx, &mut eit_anchor, AnchorType::Before, app_state)
                 }));
             }
             (Left(new), Right(prev), Right(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    prev.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before);
+                    prev.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before, app_state);
                 });
                 state.id = ctx.new_structural_id();
                 state.inner = Left(ctx.with_id(state.id, |ctx| {
-                    new.build(ctx, &mut eit_anchor, AnchorType::Before)
+                    new.build(ctx, &mut eit_anchor, AnchorType::Before, app_state)
                 }));
             }
             _ => unreachable!(),
@@ -96,6 +116,7 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         assert_eq!(
             self.is_left(),
@@ -107,12 +128,12 @@ where
         match (self, &mut state.inner) {
             (Left(val), Left(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    val.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before);
+                    val.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before, app_state);
                 });
             }
             (Right(val), Right(inner)) => {
                 ctx.with_id(state.id, |ctx| {
-                    val.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before);
+                    val.teardown(inner, ctx, &mut eit_anchor, AnchorType::Before, app_state);
                 });
             }
             _ => unreachable!(),

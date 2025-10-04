@@ -77,8 +77,9 @@ where
         ctx: &mut crate::ctx::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState {
-        let inner_view_state = self.inner.build(ctx, anchor, anchor_type);
+        let inner_view_state = self.inner.build(ctx, anchor, anchor_type, app_state);
         let mut node = self.inner.get_node(&inner_view_state);
         Typ::set(node.upcast_mut(), self.name.as_ref(), self.value.clone());
         ThemeOverrideViewState { inner_view_state }
@@ -91,6 +92,7 @@ where
         ctx: &mut crate::ctx::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         self.inner.rebuild(
             &prev.inner,
@@ -98,6 +100,7 @@ where
             ctx,
             anchor,
             anchor_type,
+            app_state,
         );
 
         let mut node = self.get_node(state);
@@ -113,9 +116,15 @@ where
         ctx: &mut crate::ctx::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
-        self.inner
-            .teardown(&mut state.inner_view_state, ctx, anchor, anchor_type);
+        self.inner.teardown(
+            &mut state.inner_view_state,
+            ctx,
+            anchor,
+            anchor_type,
+            app_state,
+        );
     }
 
     fn message(

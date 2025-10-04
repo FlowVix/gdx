@@ -21,6 +21,7 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState {
         let mut opt_anchor = Node::new_alloc();
         anchor_type.add(anchor, &opt_anchor);
@@ -30,7 +31,7 @@ where
                 let inner_id = ctx.new_structural_id();
                 (
                     ctx.with_id(inner_id, |ctx| {
-                        inner.build(ctx, &mut opt_anchor, AnchorType::Before)
+                        inner.build(ctx, &mut opt_anchor, AnchorType::Before, app_state)
                     }),
                     inner_id,
                 )
@@ -45,6 +46,7 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         assert_eq!(
             prev.is_some(),
@@ -56,7 +58,13 @@ where
             (None, None) => {}
             (None, Some((prev, (inner_state, id)))) => {
                 ctx.with_id(*id, |ctx| {
-                    prev.teardown(inner_state, ctx, &mut opt_anchor, AnchorType::Before);
+                    prev.teardown(
+                        inner_state,
+                        ctx,
+                        &mut opt_anchor,
+                        AnchorType::Before,
+                        app_state,
+                    );
                 });
                 state.inner = None;
             }
@@ -64,14 +72,21 @@ where
                 let inner_id = ctx.new_structural_id();
                 state.inner = Some((
                     ctx.with_id(inner_id, |ctx| {
-                        new.build(ctx, &mut opt_anchor, AnchorType::Before)
+                        new.build(ctx, &mut opt_anchor, AnchorType::Before, app_state)
                     }),
                     inner_id,
                 ));
             }
             (Some(new), Some((prev, (inner_state, id)))) => {
                 ctx.with_id(*id, |ctx| {
-                    new.rebuild(prev, inner_state, ctx, &mut opt_anchor, AnchorType::Before);
+                    new.rebuild(
+                        prev,
+                        inner_state,
+                        ctx,
+                        &mut opt_anchor,
+                        AnchorType::Before,
+                        app_state,
+                    );
                 });
             }
         }
@@ -83,6 +98,7 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         assert_eq!(
             self.is_some(),
@@ -93,7 +109,7 @@ where
 
         if let Some((val, (inner, id))) = self.as_ref().zip(state.inner.as_mut()) {
             ctx.with_id(*id, |ctx| {
-                val.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before);
+                val.teardown(inner, ctx, &mut opt_anchor, AnchorType::Before, app_state);
             });
         }
         anchor_type.remove(anchor, &opt_anchor);

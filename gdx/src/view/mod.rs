@@ -68,6 +68,7 @@ pub trait View<State: ArgTuple> {
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState;
     fn rebuild(
         &self,
@@ -76,6 +77,7 @@ pub trait View<State: ArgTuple> {
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     );
     fn teardown(
         &self,
@@ -83,6 +85,7 @@ pub trait View<State: ArgTuple> {
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     );
     fn message(
         &self,
@@ -106,8 +109,9 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState {
-        self.deref().build(ctx, anchor, anchor_type)
+        self.deref().build(ctx, anchor, anchor_type, app_state)
     }
 
     fn rebuild(
@@ -117,8 +121,10 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
-        self.deref().rebuild(prev, state, ctx, anchor, anchor_type);
+        self.deref()
+            .rebuild(prev, state, ctx, anchor, anchor_type, app_state);
     }
 
     fn teardown(
@@ -127,8 +133,10 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
-        self.deref().teardown(state, ctx, anchor, anchor_type);
+        self.deref()
+            .teardown(state, ctx, anchor, anchor_type, app_state);
     }
 
     fn message(
@@ -154,13 +162,13 @@ macro_rules! tuple_impl {
 
                 #[allow(clippy::unused_unit)]
                 #[allow(unused_variables)]
-                fn build(&self, ctx: &mut Context, anchor: &mut Node, anchor_type: AnchorType) -> Self::ViewState {
+                fn build(&self, ctx: &mut Context, anchor: &mut Node, anchor_type: AnchorType, app_state: &mut State) -> Self::ViewState {
                     (
                         $(
                             {
                                 let child_id = ctx.new_structural_id();
                                 (ctx.with_id(child_id, |ctx| {
-                                    self.$v.build(ctx, anchor, anchor_type)
+                                    self.$v.build(ctx, anchor, anchor_type, app_state)
                                 }), child_id)
                             },
                         )*
@@ -172,19 +180,21 @@ macro_rules! tuple_impl {
                     prev: &Self,
                     state: &mut Self::ViewState,
                     ctx: &mut Context,
-                    anchor: &mut Node, anchor_type: AnchorType,
+                    anchor: &mut Node,
+                    anchor_type: AnchorType,
+                    app_state: &mut State,
                 ) {
                     $(
                         ctx.with_id(state.$v.1, |ctx| {
-                            self.$v.rebuild(&prev.$v, &mut state.$v.0, ctx, anchor, anchor_type);
+                            self.$v.rebuild(&prev.$v, &mut state.$v.0, ctx, anchor, anchor_type, app_state);
                         });
                     )*
                 }
                 #[allow(unused_variables)]
-                fn teardown(&self, state: &mut Self::ViewState, ctx: &mut Context, anchor: &mut Node, anchor_type: AnchorType) {
+                fn teardown(&self, state: &mut Self::ViewState, ctx: &mut Context, anchor: &mut Node, anchor_type: AnchorType, app_state: &mut State) {
                     $(
                         ctx.with_id(state.$v.1, |ctx| {
-                            self.$v.teardown(&mut state.$v.0, ctx, anchor, anchor_type);
+                            self.$v.teardown(&mut state.$v.0, ctx, anchor, anchor_type, app_state);
                         });
                     )*
                 }

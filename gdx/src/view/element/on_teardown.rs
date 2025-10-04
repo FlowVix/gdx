@@ -21,7 +21,7 @@ pub struct OnTeardownViewState<InnerViewState> {
 impl<N, State: ArgTuple, Cb, Inner> View<State> for OnTeardown<N, Cb, Inner>
 where
     Inner: ElementView<N, State>,
-    Cb: Fn(Gd<N>),
+    Cb: Fn(&mut State, Gd<N>),
     N: Inherits<Node>,
 {
     type ViewState = OnTeardownViewState<Inner::ViewState>;
@@ -31,8 +31,9 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState {
-        let inner_view_state = self.inner.build(ctx, anchor, anchor_type);
+        let inner_view_state = self.inner.build(ctx, anchor, anchor_type, app_state);
 
         OnTeardownViewState { inner_view_state }
     }
@@ -44,6 +45,7 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         self.inner.rebuild(
             &prev.inner,
@@ -51,6 +53,7 @@ where
             ctx,
             anchor,
             anchor_type,
+            app_state,
         );
     }
 
@@ -60,12 +63,19 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         let node = self.inner.get_node(&state.inner_view_state);
-        (self.cb)(node);
+        (self.cb)(app_state, node);
+        ctx.needs_rebuild = true;
 
-        self.inner
-            .teardown(&mut state.inner_view_state, ctx, anchor, anchor_type);
+        self.inner.teardown(
+            &mut state.inner_view_state,
+            ctx,
+            anchor,
+            anchor_type,
+            app_state,
+        );
     }
 
     fn message(
@@ -87,7 +97,7 @@ where
 impl<N, State: ArgTuple, Cb, Inner> ElementView<N, State> for OnTeardown<N, Cb, Inner>
 where
     Inner: ElementView<N, State>,
-    Cb: Fn(Gd<N>),
+    Cb: Fn(&mut State, Gd<N>),
     N: Inherits<Node>,
 {
     fn get_node(&self, state: &Self::ViewState) -> Gd<N> {

@@ -24,8 +24,11 @@ where
         ctx: &mut crate::Context,
         anchor: &mut godot::prelude::Node,
         anchor_type: super::AnchorType,
+        app_state: &mut ParentState,
     ) -> Self::ViewState {
-        self.inner.build(ctx, anchor, anchor_type)
+        ArgTuple::extract_call((self.map_fn)(app_state), |child| {
+            self.inner.build(ctx, anchor, anchor_type, child)
+        })
     }
 
     fn rebuild(
@@ -35,9 +38,12 @@ where
         ctx: &mut crate::Context,
         anchor: &mut godot::prelude::Node,
         anchor_type: super::AnchorType,
+        app_state: &mut ParentState,
     ) {
-        self.inner
-            .rebuild(&prev.inner, state, ctx, anchor, anchor_type);
+        ArgTuple::extract_call((self.map_fn)(app_state), |child| {
+            self.inner
+                .rebuild(&prev.inner, state, ctx, anchor, anchor_type, child);
+        })
     }
 
     fn teardown(
@@ -46,8 +52,11 @@ where
         ctx: &mut crate::Context,
         anchor: &mut godot::prelude::Node,
         anchor_type: super::AnchorType,
+        app_state: &mut ParentState,
     ) {
-        self.inner.teardown(state, ctx, anchor, anchor_type);
+        ArgTuple::extract_call((self.map_fn)(app_state), |child| {
+            self.inner.teardown(state, ctx, anchor, anchor_type, child);
+        })
     }
 
     fn message(

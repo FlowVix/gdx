@@ -10,6 +10,7 @@ pub struct Context {
     pub(crate) path: Vec<ViewID>,
 
     pub(crate) msg_queue: Arc<Mutex<VecDeque<FullMessage>>>,
+    pub(crate) needs_rebuild: bool,
 }
 
 impl Context {

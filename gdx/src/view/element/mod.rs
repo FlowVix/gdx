@@ -59,14 +59,19 @@ where
         ctx: &mut crate::ctx::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState {
         let mut node = N::new_alloc();
         anchor_type.add(anchor, &node.clone().upcast::<Node>());
 
         let child_id = ctx.new_structural_id();
         let child_view_state = ctx.with_id(child_id, |ctx| {
-            self.children
-                .build(ctx, node.upcast_mut::<Node>(), AnchorType::ChildOf)
+            self.children.build(
+                ctx,
+                node.upcast_mut::<Node>(),
+                AnchorType::ChildOf,
+                app_state,
+            )
         });
 
         ElementViewState {
@@ -83,6 +88,7 @@ where
         ctx: &mut crate::ctx::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         ctx.with_id(state.child_id, |ctx| {
             self.children.rebuild(
@@ -91,6 +97,7 @@ where
                 ctx,
                 state.node.upcast_mut::<Node>(),
                 AnchorType::ChildOf,
+                app_state,
             );
         })
     }
@@ -101,6 +108,7 @@ where
         ctx: &mut crate::ctx::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         ctx.with_id(state.child_id, |ctx| {
             self.children.teardown(
@@ -108,6 +116,7 @@ where
                 ctx,
                 state.node.upcast_mut(),
                 AnchorType::ChildOf,
+                app_state,
             );
         });
 

@@ -14,6 +14,7 @@ pub trait AnyView<State: ArgTuple> {
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> AnyViewState;
     fn dyn_rebuild(
         &self,
@@ -22,6 +23,7 @@ pub trait AnyView<State: ArgTuple> {
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     );
     fn dyn_teardown(
         &self,
@@ -29,6 +31,7 @@ pub trait AnyView<State: ArgTuple> {
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     );
     fn dyn_message(
         &self,
@@ -62,13 +65,14 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> AnyViewState {
         let mut any_anchor = Node::new_alloc();
         anchor_type.add(anchor, &any_anchor);
         let inner_id = ctx.new_structural_id();
 
         let inner = ctx.with_id(inner_id, |ctx| {
-            self.build(ctx, &mut any_anchor, AnchorType::Before)
+            self.build(ctx, &mut any_anchor, AnchorType::Before, app_state)
         });
         AnyViewState {
             anchor: any_anchor,
@@ -84,6 +88,7 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         let mut any_anchor = state.anchor.clone();
         if let Some(prev) = prev.as_any().downcast_ref::<V>() {
@@ -93,15 +98,22 @@ where
                 .expect("What the hell bro");
 
             ctx.with_id(state.id, |ctx| {
-                self.rebuild(prev, inner, ctx, &mut any_anchor, AnchorType::Before);
+                self.rebuild(
+                    prev,
+                    inner,
+                    ctx,
+                    &mut any_anchor,
+                    AnchorType::Before,
+                    app_state,
+                );
             })
         } else {
             ctx.with_id(state.id, |ctx| {
-                prev.dyn_teardown(state, ctx, &mut any_anchor, AnchorType::Before);
+                prev.dyn_teardown(state, ctx, &mut any_anchor, AnchorType::Before, app_state);
             });
             state.id = ctx.new_structural_id();
             let inner = ctx.with_id(state.id, |ctx| {
-                self.build(ctx, &mut any_anchor, AnchorType::Before)
+                self.build(ctx, &mut any_anchor, AnchorType::Before, app_state)
             });
             state.inner = Box::new(inner);
         }
@@ -113,6 +125,7 @@ where
         ctx: &mut Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         let inner = state
             .inner
@@ -120,7 +133,7 @@ where
             .expect("What the hell bro");
         let mut any_anchor = state.anchor.clone();
         ctx.with_id(state.id, |ctx| {
-            self.teardown(inner, ctx, &mut any_anchor, AnchorType::Before);
+            self.teardown(inner, ctx, &mut any_anchor, AnchorType::Before, app_state);
         });
     }
 
@@ -167,8 +180,9 @@ macro_rules! dyn_anyview_impl {
                 ctx: &mut Context,
                 anchor: &mut Node,
                 anchor_type: AnchorType,
+                app_state: &mut State,
             ) -> Self::ViewState {
-                self.dyn_build(ctx, anchor, anchor_type)
+                self.dyn_build(ctx, anchor, anchor_type, app_state)
             }
 
             fn rebuild(
@@ -178,8 +192,9 @@ macro_rules! dyn_anyview_impl {
                 ctx: &mut Context,
                 anchor: &mut Node,
                 anchor_type: AnchorType,
+                app_state: &mut State,
             ) {
-                self.dyn_rebuild(prev, state, ctx, anchor, anchor_type);
+                self.dyn_rebuild(prev, state, ctx, anchor, anchor_type, app_state);
             }
 
             fn teardown(
@@ -188,8 +203,9 @@ macro_rules! dyn_anyview_impl {
                 ctx: &mut Context,
                 anchor: &mut Node,
                 anchor_type: AnchorType,
+                app_state: &mut State,
             ) {
-                self.dyn_teardown(state, ctx, anchor, anchor_type);
+                self.dyn_teardown(state, ctx, anchor, anchor_type, app_state);
             }
 
             fn message(

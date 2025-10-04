@@ -41,6 +41,7 @@ where
                 id_counter: 0,
                 path: vec![],
                 msg_queue: Arc::new(Mutex::new(VecDeque::new())),
+                needs_rebuild: false,
             },
             _p: PhantomData,
         }
@@ -59,9 +60,14 @@ where
     fn run(&mut self) {
         if let Some((prev, state)) = &mut self.view {
             if !{ self.ctx.msg_queue.lock().is_empty() } {
+                self.ctx.needs_rebuild = true;
                 while let Some(v) = self.ctx.msg_queue.lock().pop_front() {
                     prev.message(v.msg, &v.path, state, &mut self.state);
                 }
+            }
+            while self.ctx.needs_rebuild {
+                self.ctx.needs_rebuild = false;
+
                 let new = (self.app_fn)(&mut self.state);
                 godot_print!("Rebuilding");
                 new.rebuild(
@@ -70,13 +76,19 @@ where
                     &mut self.ctx,
                     &mut self.root,
                     AnchorType::ChildOf,
+                    &mut self.state,
                 );
                 *prev = new;
             }
         } else {
             let view = (self.app_fn)(&mut self.state);
             godot_print!("Initial build");
-            let state = view.build(&mut self.ctx, &mut self.root, AnchorType::ChildOf);
+            let state = view.build(
+                &mut self.ctx,
+                &mut self.root,
+                AnchorType::ChildOf,
+                &mut self.state,
+            );
             self.view = Some((view, state));
         }
     }

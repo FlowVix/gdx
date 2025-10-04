@@ -31,8 +31,9 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) -> Self::ViewState {
-        let inner_view_state = self.inner.build(ctx, anchor, anchor_type);
+        let inner_view_state = self.inner.build(ctx, anchor, anchor_type, app_state);
 
         OnRebuildViewState { inner_view_state }
     }
@@ -44,6 +45,7 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
         let node = prev.inner.get_node(&state.inner_view_state);
         (self.cb)(node);
@@ -54,6 +56,7 @@ where
             ctx,
             anchor,
             anchor_type,
+            app_state,
         );
     }
 
@@ -63,9 +66,15 @@ where
         ctx: &mut crate::Context,
         anchor: &mut Node,
         anchor_type: AnchorType,
+        app_state: &mut State,
     ) {
-        self.inner
-            .teardown(&mut state.inner_view_state, ctx, anchor, anchor_type);
+        self.inner.teardown(
+            &mut state.inner_view_state,
+            ctx,
+            anchor,
+            anchor_type,
+            app_state,
+        );
     }
 
     fn message(
