@@ -209,9 +209,9 @@ macro_rules! impl_element_view {
                 _p: PhantomData,
             }
         }
-        pub fn on_build<Cb>(self, cb: Cb) -> $crate::OnBuild<$node, Cb, Self>
+        pub fn on_build<State, Cb>(self, cb: Cb) -> $crate::OnBuild<$node, Cb, Self>
         where
-            Cb: Fn(Gd<$node>),
+            Cb: Fn(&mut State, Gd<$node>),
             $node: godot::prelude::Inherits<godot::prelude::Node>,
         {
             use std::marker::PhantomData;
@@ -233,9 +233,9 @@ macro_rules! impl_element_view {
                 _p: PhantomData,
             }
         }
-        pub fn on_teardown<Cb>(self, cb: Cb) -> $crate::OnTeardown<$node, Cb, Self>
+        pub fn on_teardown<State, Cb>(self, cb: Cb) -> $crate::OnTeardown<$node, Cb, Self>
         where
-            Cb: Fn(Gd<$node>),
+            Cb: Fn(&mut State, Gd<$node>),
             $node: godot::prelude::Inherits<godot::prelude::Node>,
         {
             use std::marker::PhantomData;

@@ -27,10 +27,12 @@ impl Context {
     }
 }
 
+#[derive(Debug)]
 pub struct FullMessage {
     pub(crate) msg: Message,
     pub(crate) path: Arc<[ViewID]>,
 }
+#[derive(Debug)]
 pub enum Message {
     Signal {
         name: Arc<str>,
