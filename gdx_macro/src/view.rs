@@ -38,9 +38,8 @@ pub enum ViewType {
     },
     If(IfView),
     Lens {
-        parent: Expr,
         map: Expr,
-        bind: Ident,
+        bind: Pat,
         body: ViewBody,
     },
     Map {
@@ -159,27 +158,20 @@ impl Parse for ViewType {
             Ok(ViewType::If(input.parse()?))
         } else if input.peek(Token![where]) {
             input.parse::<Token![where]>()?;
-            let expr = input.parse()?;
+            let map = input.parse()?;
 
-            if input.peek(Token![in]) {
-                input.parse::<Token![in]>()?;
-                let map = input.parse()?;
+            if input.peek(Token![become]) {
                 input.parse::<Token![become]>()?;
-                let bind = input.parse()?;
+                let bind = Pat::parse_single(input)?;
                 let inner;
                 braced!(inner in input);
                 let body = inner.parse()?;
-                Ok(ViewType::Lens {
-                    parent: expr,
-                    map,
-                    bind,
-                    body,
-                })
+                Ok(ViewType::Lens { map, bind, body })
             } else {
                 let inner;
                 braced!(inner in input);
                 let body = inner.parse()?;
-                Ok(ViewType::Map { map: expr, body })
+                Ok(ViewType::Map { map, body })
             }
         } else if input.peek(Token![dyn]) {
             input.parse::<Token![dyn]>()?;
@@ -311,14 +303,9 @@ impl ViewType {
                 quote! { (#iter).into_iter().map(|#pattern| (#key, #body) ).collect::<Vec<_>>() }
             }
             ViewType::If(if_view) => if_view.gen_rust(),
-            ViewType::Lens {
-                parent,
-                map,
-                bind,
-                body,
-            } => {
+            ViewType::Lens { map, bind, body } => {
                 let body = body.gen_rust();
-                quote! { ::gdx::lens(#parent, #map, |#bind| #body) }
+                quote! { ::gdx::lens(#map, |#bind| #body) }
             }
             ViewType::Map { map, body } => {
                 let body = body.gen_rust();

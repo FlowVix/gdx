@@ -5,19 +5,20 @@ use replace_with::replace_with_or_abort;
 
 use crate::{View, view::ArgTuple};
 
-pub struct MapState<Inner, MapFn, ChildState> {
-    inner: Inner,
+pub struct Lens<InnerFn, MapFn, ChildState> {
+    inner_fn: InnerFn,
     map_fn: MapFn,
     _p: PhantomData<ChildState>,
 }
 
-impl<ParentState: ArgTuple, ChildState: ArgTuple, Inner, MapFn> View<ParentState>
-    for MapState<Inner, MapFn, ChildState>
+impl<ParentState: ArgTuple, ChildState: ArgTuple, Inner, InnerFn, MapFn> View<ParentState>
+    for Lens<InnerFn, MapFn, ChildState>
 where
     Inner: View<ChildState>,
+    InnerFn: Fn(&mut ChildState) -> Inner,
     MapFn: Fn(&mut ParentState) -> ChildState::Ref<'_>,
 {
-    type ViewState = Inner::ViewState;
+    type ViewState = (Inner, Inner::ViewState);
 
     fn build(
         &self,
@@ -27,7 +28,9 @@ where
         app_state: &mut ParentState,
     ) -> Self::ViewState {
         ArgTuple::extract_call((self.map_fn)(app_state), |child| {
-            self.inner.build(ctx, anchor, anchor_type, child)
+            let child_comp = (self.inner_fn)(child);
+            let state = child_comp.build(ctx, anchor, anchor_type, child);
+            (child_comp, state)
         })
     }
 
@@ -41,8 +44,8 @@ where
         app_state: &mut ParentState,
     ) {
         ArgTuple::extract_call((self.map_fn)(app_state), |child| {
-            self.inner
-                .rebuild(&prev.inner, state, ctx, anchor, anchor_type, child);
+            let child_comp = (self.inner_fn)(child);
+            child_comp.rebuild(&state.0, &mut state.1, ctx, anchor, anchor_type, child);
         })
     }
 
@@ -55,7 +58,9 @@ where
         app_state: &mut ParentState,
     ) {
         ArgTuple::extract_call((self.map_fn)(app_state), |child| {
-            self.inner.teardown(state, ctx, anchor, anchor_type, child);
+            state
+                .0
+                .teardown(&mut state.1, ctx, anchor, anchor_type, child);
         })
     }
 
@@ -67,7 +72,7 @@ where
         app_state: &mut ParentState,
     ) -> crate::MessageResult {
         ArgTuple::extract_call((self.map_fn)(app_state), |child| {
-            self.inner.message(msg, path, view_state, child)
+            view_state.0.message(msg, path, &mut view_state.1, child)
         })
     }
 
@@ -76,20 +81,21 @@ where
         state: &Self::ViewState,
         nodes: &mut Vec<godot::prelude::Gd<godot::prelude::Node>>,
     ) {
-        self.inner.collect_nodes(state, nodes);
+        state.0.collect_nodes(&state.1, nodes);
     }
 }
 
-pub fn map<ParentState: ArgTuple, ChildState: ArgTuple, MapFn, Inner>(
-    view: Inner,
+pub fn lens<ParentState: ArgTuple, ChildState: ArgTuple, MapFn, InnerFn, Inner>(
     map_fn: MapFn,
-) -> MapState<Inner, MapFn, ChildState>
+    inner_fn: InnerFn,
+) -> Lens<InnerFn, MapFn, ChildState>
 where
     MapFn: Fn(&mut ParentState) -> ChildState::Ref<'_>,
+    InnerFn: Fn(&mut ChildState) -> Inner,
     Inner: View<ChildState>,
 {
-    MapState {
-        inner: view,
+    Lens {
+        inner_fn,
         map_fn,
         _p: PhantomData,
     }
