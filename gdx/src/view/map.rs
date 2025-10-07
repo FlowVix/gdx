@@ -81,8 +81,8 @@ where
 }
 
 pub fn map<ParentState: ArgTuple, ChildState: ArgTuple, MapFn, Inner>(
-    view: Inner,
     map_fn: MapFn,
+    view: Inner,
 ) -> MapState<Inner, MapFn, ChildState>
 where
     MapFn: Fn(&mut ParentState) -> ChildState::Ref<'_>,

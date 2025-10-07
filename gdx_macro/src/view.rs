@@ -3,7 +3,7 @@ use heck::ToUpperCamelCase;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    Expr, Ident, Pat, Token, Type, braced, bracketed, parenthesized, parse::Parse,
+    Expr, Ident, Pat, Token, Type, braced, bracketed, parenthesized, parse::Parse, parse_quote,
     punctuated::Punctuated, token,
 };
 
@@ -38,12 +38,15 @@ pub enum ViewType {
     },
     If(IfView),
     Lens {
-        map: Expr,
-        bind: Pat,
+        moves: bool,
+        args: Punctuated<(Pat, Type), Token![,]>,
+        result: Punctuated<(Ident, Expr), Token![,]>,
         body: ViewBody,
     },
     Map {
-        map: Expr,
+        moves: bool,
+        args: Punctuated<(Pat, Type), Token![,]>,
+        result: Punctuated<Expr, Token![,]>,
         body: ViewBody,
     },
     Dyn(ViewBody),
@@ -156,22 +159,56 @@ impl Parse for ViewType {
             })
         } else if input.peek(Token![if]) {
             Ok(ViewType::If(input.parse()?))
-        } else if input.peek(Token![where]) {
-            input.parse::<Token![where]>()?;
-            let map = input.parse()?;
+        } else if input.peek(Token![become]) {
+            input.parse::<Token![become]>()?;
 
-            if input.peek(Token![become]) {
-                input.parse::<Token![become]>()?;
-                let bind = Pat::parse_single(input)?;
+            let moves = input.peek(Token![move]);
+            if moves {
+                input.parse::<Token![move]>()?;
+            }
+
+            let inner;
+            parenthesized!(inner in input);
+            let args = Punctuated::parse_terminated_with(&inner, |inner| {
+                let name = Pat::parse_single(inner)?;
+                let typ = if inner.peek(Token![:]) {
+                    inner.parse::<Token![:]>()?;
+                    inner.parse()?
+                } else {
+                    parse_quote! { _ }
+                };
+                Ok((name, typ))
+            })?;
+            input.parse::<Token![=>]>()?;
+            let inner;
+            parenthesized!(inner in input);
+            if inner.peek(Ident) && inner.peek2(Token![:]) {
+                let result = Punctuated::parse_terminated_with(&inner, |inner| {
+                    let name = inner.parse()?;
+                    inner.parse::<Token![:]>()?;
+                    let expr = inner.parse()?;
+                    Ok((name, expr))
+                })?;
                 let inner;
                 braced!(inner in input);
                 let body = inner.parse()?;
-                Ok(ViewType::Lens { map, bind, body })
+                Ok(ViewType::Lens {
+                    moves,
+                    args,
+                    result,
+                    body,
+                })
             } else {
+                let result = Punctuated::parse_terminated(&inner)?;
                 let inner;
                 braced!(inner in input);
                 let body = inner.parse()?;
-                Ok(ViewType::Map { map, body })
+                Ok(ViewType::Map {
+                    moves,
+                    args,
+                    result,
+                    body,
+                })
             }
         } else if input.peek(Token![dyn]) {
             input.parse::<Token![dyn]>()?;
@@ -303,13 +340,41 @@ impl ViewType {
                 quote! { (#iter).into_iter().map(|#pattern| (#key, #body) ).collect::<Vec<_>>() }
             }
             ViewType::If(if_view) => if_view.gen_rust(),
-            ViewType::Lens { map, bind, body } => {
+            ViewType::Lens {
+                moves,
+                args,
+                result,
+                body,
+            } => {
+                let (arg_names, arg_types): (Vec<_>, Vec<_>) = args.iter().cloned().unzip();
+                let (result_names, result_exprs): (Vec<_>, Vec<_>) = result.iter().cloned().unzip();
                 let body = body.gen_rust();
-                quote! { ::gdx::lens(#map, |#bind| #body) }
+
+                let moves = if *moves {
+                    quote! { move }
+                } else {
+                    quote! {}
+                };
+
+                quote! { ::gdx::lens(#moves |(#(#arg_names,)*): &mut (#(#arg_types,)*)| (#(#result_exprs,)*), |(#(#result_names,)*)| #body) }
             }
-            ViewType::Map { map, body } => {
+            ViewType::Map {
+                moves,
+                args,
+                result,
+                body,
+            } => {
+                let (arg_names, arg_types): (Vec<_>, Vec<_>) = args.iter().cloned().unzip();
+                let result_expr = result.iter();
                 let body = body.gen_rust();
-                quote! { ::gdx::map(#body, #map) }
+
+                let moves = if *moves {
+                    quote! { move }
+                } else {
+                    quote! {}
+                };
+
+                quote! { ::gdx::map(#moves |(#(#arg_names,)*): &mut (#(#arg_types,)*)| (#(#result_expr,)*), #body) }
             }
             ViewType::Dyn(view_body) => {
                 let body = view_body.gen_rust();
