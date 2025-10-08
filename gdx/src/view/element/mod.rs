@@ -165,7 +165,11 @@ where
 // doing this instead of the trait because rust was smelly
 macro_rules! impl_element_view {
     ($node:ident) => {
-        pub fn attr<Name, Value>(self, name: Name, value: Value) -> $crate::Attr<$node, Name, Self>
+        pub fn attr<Name, Value, const BUILD_ONLY: bool>(
+            self,
+            name: Name,
+            value: Value,
+        ) -> $crate::Attr<$node, Name, Self, BUILD_ONLY>
         where
             Name: AsRef<str>,
             Value: ToGodot,

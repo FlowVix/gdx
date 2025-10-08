@@ -58,7 +58,7 @@ pub struct Event {
 }
 
 pub enum ElemModifier {
-    Attr(Ident, Expr),
+    Attr(Ident, Expr, bool),
     Event(Event, Expr),
     ThemeOverride {
         typ: Ident,
@@ -98,9 +98,13 @@ impl Parse for ElemModifier {
             Ok(ElemModifier::ThemeOverride { typ, name, value })
         } else {
             let name = input.parse()?;
+            let build_only = input.peek(Token![@]);
+            if build_only {
+                input.parse::<Token![@]>()?;
+            }
             input.parse::<Token![=]>()?;
             let value = input.parse()?;
-            Ok(ElemModifier::Attr(name, value))
+            Ok(ElemModifier::Attr(name, value, build_only))
         }
     }
 }
@@ -299,9 +303,9 @@ impl ViewType {
                 }
                 for m in modifiers.iter().flatten() {
                     match m {
-                        ElemModifier::Attr(ident, expr) => {
-                            out.extend(quote! { .attr(stringify!(#ident), #expr) })
-                        }
+                        ElemModifier::Attr(ident, expr, build_only) => out.extend(
+                            quote! { .attr::<_, _, #build_only>(stringify!(#ident), #expr) },
+                        ),
                         ElemModifier::Event(event, expr) => {
                             let func_name =
                                 Ident::new(&format!("on_{}", event.typ), event.typ.span());
@@ -327,7 +331,12 @@ impl ViewType {
                 children,
             } => {
                 let children = children.as_ref().map(|v| v.gen_rust());
-                quote! { #name(#args, #children) }
+                let children = if let Some(children) = children {
+                    quote! { , #children }
+                } else {
+                    quote! {}
+                };
+                quote! { #name(#args #children) }
             }
             ViewType::Expr(expr) => quote! { #expr },
             ViewType::For {

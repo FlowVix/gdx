@@ -7,7 +7,7 @@ use crate::{
     view::{AnchorType, ArgTuple, View, element::impl_element_view},
 };
 
-pub struct Attr<N, Name, Inner> {
+pub struct Attr<N, Name, Inner, const BUILD_ONLY: bool> {
     pub(crate) inner: Inner,
     pub(crate) name: Name,
     pub(crate) value: Variant,
@@ -19,7 +19,8 @@ pub struct AttrViewState<InnerViewState> {
     inner_view_state: InnerViewState,
 }
 
-impl<State: ArgTuple, N, Name, Inner> View<State> for Attr<N, Name, Inner>
+impl<State: ArgTuple, N, Name, Inner, const BUILD_ONLY: bool> View<State>
+    for Attr<N, Name, Inner, BUILD_ONLY>
 where
     Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,
@@ -62,12 +63,14 @@ where
             app_state,
         );
 
-        let mut node = self.get_node(state);
-        if self.name.as_ref() != prev.name.as_ref() {
-            node.upcast_mut().set(prev.name.as_ref(), &state.prev_value);
+        if !BUILD_ONLY {
+            let mut node = self.get_node(state);
+            if self.name.as_ref() != prev.name.as_ref() {
+                node.upcast_mut().set(prev.name.as_ref(), &state.prev_value);
+            }
+            state.prev_value = node.upcast_ref().get(self.name.as_ref());
+            node.upcast_mut().set(self.name.as_ref(), &self.value);
         }
-        state.prev_value = node.upcast_ref().get(self.name.as_ref());
-        node.upcast_mut().set(self.name.as_ref(), &self.value);
     }
 
     fn teardown(
@@ -103,7 +106,8 @@ where
     }
 }
 
-impl<State: ArgTuple, N, Name, Inner> ElementView<N, State> for Attr<N, Name, Inner>
+impl<State: ArgTuple, N, Name, Inner, const BUILD_ONLY: bool> ElementView<N, State>
+    for Attr<N, Name, Inner, BUILD_ONLY>
 where
     Inner: ElementView<N, State>,
     Name: AsRef<str> + Clone,
@@ -114,6 +118,6 @@ where
     }
 }
 
-impl<N, Name0, Inner> Attr<N, Name0, Inner> {
+impl<N, Name0, Inner, const BUILD_ONLY0: bool> Attr<N, Name0, Inner, BUILD_ONLY0> {
     impl_element_view! { N }
 }
