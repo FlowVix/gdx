@@ -3,8 +3,8 @@ use godot::classes::{Button, Label};
 
 fn blob() -> impl View<(Option<i32>, (f32, f32))> + use<> {
     view! {
-        become if (Some(a), b: (f32, f32)) => (a, &mut b.0): (i32, f32) {
-            Label
+        become (a, b: (f32, f32)) => (a, &mut b.0) {
+
         }
     }
 }

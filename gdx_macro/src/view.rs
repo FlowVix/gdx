@@ -426,7 +426,8 @@ impl ViewType {
                     let result_types = result_type.iter();
                     quote! { (#(#result_types,)*) }
                 } else {
-                    quote! { _ }
+                    let result_types = (0..clause.result.len()).map(|_| quote! { _ });
+                    quote! { (#(#result_types,)*) }
                 };
                 let body = body.gen_rust();
 
