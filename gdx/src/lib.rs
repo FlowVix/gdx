@@ -31,8 +31,8 @@ pub use view::{
         },
     },
     iter::VecViewState,
-    lens::{Lens, lens},
     map::{MapState, map},
     option::OptionViewState,
     proxy::{MessageProxy, Proxy, proxy},
+    using::{Using, using},
 };

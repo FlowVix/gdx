@@ -2,10 +2,10 @@ pub mod any;
 pub mod either;
 pub mod element;
 pub mod iter;
-pub mod lens;
 pub mod map;
 pub mod option;
 pub mod proxy;
+pub mod using;
 
 use replace_with::replace_with_or_abort;
 use std::ops::Deref;
