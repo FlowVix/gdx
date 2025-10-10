@@ -1,15 +1,16 @@
-use std::{collections::VecDeque, rc::Rc, sync::Arc};
+use std::{any::Any, collections::VecDeque, rc::Rc, sync::Arc};
 
 use godot::builtin::Variant;
 use parking_lot::Mutex;
 
 use crate::view::ViewID;
 
+pub type MsgQueue = Arc<Mutex<VecDeque<FullMessage>>>;
 pub struct Context {
     pub(crate) id_counter: u64,
     pub(crate) path: Vec<ViewID>,
 
-    pub(crate) msg_queue: Arc<Mutex<VecDeque<FullMessage>>>,
+    pub(crate) msg_queue: MsgQueue,
     pub(crate) needs_rebuild: bool,
 }
 
@@ -39,6 +40,9 @@ pub enum Message {
         args: Box<[Variant]>,
     },
     Mounted,
+    Proxy {
+        value: Box<dyn Any>,
+    },
 }
 pub enum MessageResult {
     Success,

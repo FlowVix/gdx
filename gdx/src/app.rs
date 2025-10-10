@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, marker::PhantomData, sync::Arc};
 
+use gdx_macro::view;
 use godot::{
     classes::Node,
     global::godot_print,

@@ -5,6 +5,7 @@ pub mod iter;
 pub mod lens;
 pub mod map;
 pub mod option;
+pub mod proxy;
 
 use replace_with::replace_with_or_abort;
 use std::ops::Deref;

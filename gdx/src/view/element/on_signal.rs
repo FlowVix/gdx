@@ -131,7 +131,7 @@ where
             match msg {
                 Message::Signal { ref name, ref args } => {
                     if **name == *self.name.as_ref() {
-                        let mut node = self.get_node(view_state);
+                        let node = self.get_node(view_state);
                         (self.cb)(app_state, args, node);
                         return MessageResult::Success;
                     }

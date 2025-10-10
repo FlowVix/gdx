@@ -36,7 +36,7 @@ where
 
     fn rebuild(
         &self,
-        prev: &Self,
+        _prev: &Self,
         state: &mut Self::ViewState,
         ctx: &mut crate::Context,
         anchor: &mut godot::prelude::Node,

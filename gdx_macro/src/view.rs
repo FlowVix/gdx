@@ -3,8 +3,8 @@ use heck::ToUpperCamelCase;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{
-    Expr, Ident, Pat, Token, Type, braced, bracketed, parenthesized, parse::Parse, parse_quote,
-    punctuated::Punctuated, token,
+    AngleBracketedGenericArguments, Expr, Ident, Pat, Token, Type, braced, bracketed,
+    parenthesized, parse::Parse, parse_quote, punctuated::Punctuated, token,
 };
 
 pub struct ViewBody {
@@ -50,6 +50,12 @@ pub enum ViewType {
         body: ViewBody,
     },
     Dyn(ViewBody),
+    Proxy {
+        generics: Option<AngleBracketedGenericArguments>,
+        bind: Ident,
+        cb: Expr,
+        body: ViewBody,
+    },
 }
 
 pub struct Event {
@@ -220,6 +226,25 @@ impl Parse for ViewType {
             braced!(inner in input);
             let body = inner.parse()?;
             Ok(ViewType::Dyn(body))
+        } else if input.peek(Token![use]) {
+            input.parse::<Token![use]>()?;
+            let generics = if input.peek(Token![<]) || input.peek(Token![<<]) {
+                Some(AngleBracketedGenericArguments::parse(input)?)
+            } else {
+                None
+            };
+            let bind = input.parse()?;
+            input.parse::<Token![in]>()?;
+            let cb = Expr::parse_without_eager_brace(input)?;
+            let inner;
+            braced!(inner in input);
+            let body = inner.parse()?;
+            Ok(ViewType::Proxy {
+                generics,
+                bind,
+                cb,
+                body,
+            })
         } else {
             let name = input.parse()?;
 
@@ -318,8 +343,8 @@ impl ViewType {
                                 typ.span(),
                             );
                             out.extend(
-                                quote! { .theme_override::<::gdx::#typ, _>(stringify!(#name), #value) },
-                            )
+                                        quote! { .theme_override::<::gdx::#typ, _>(stringify!(#name), #value) },
+                                    )
                         }
                     }
                 }
@@ -388,6 +413,22 @@ impl ViewType {
             ViewType::Dyn(view_body) => {
                 let body = view_body.gen_rust();
                 quote! { ( Box::new(#body) as Box<dyn ::gdx::AnyView<_>> ) }
+            }
+            ViewType::Proxy {
+                generics,
+                bind,
+                cb,
+                body,
+            } => {
+                let generics = generics
+                    .as_ref()
+                    .map(|g| {
+                        let args = &g.args;
+                        quote! { ::<_, #args, _, _, _> }
+                    })
+                    .unwrap_or(quote! {});
+                let body = body.gen_rust();
+                quote! { ::gdx::proxy #generics (#cb, |#bind| #body) }
             }
         }
     }

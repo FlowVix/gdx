@@ -34,4 +34,5 @@ pub use view::{
     lens::{Lens, lens},
     map::{MapState, map},
     option::OptionViewState,
+    proxy::{MessageProxy, Proxy, proxy},
 };
