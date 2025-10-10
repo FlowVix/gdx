@@ -54,6 +54,7 @@ pub enum ViewType {
         generics: Option<AngleBracketedGenericArguments>,
         bind: Ident,
         cb: Expr,
+        moves: bool,
         body: ViewBody,
     },
 }
@@ -236,6 +237,12 @@ impl Parse for ViewType {
             let bind = input.parse()?;
             input.parse::<Token![in]>()?;
             let cb = Expr::parse_without_eager_brace(input)?;
+
+            let moves = input.peek(Token![move]);
+            if moves {
+                input.parse::<Token![move]>()?;
+            }
+
             let inner;
             braced!(inner in input);
             let body = inner.parse()?;
@@ -243,6 +250,7 @@ impl Parse for ViewType {
                 generics,
                 bind,
                 cb,
+                moves,
                 body,
             })
         } else {
@@ -418,6 +426,7 @@ impl ViewType {
                 generics,
                 bind,
                 cb,
+                moves,
                 body,
             } => {
                 let generics = generics
@@ -428,7 +437,12 @@ impl ViewType {
                     })
                     .unwrap_or(quote! {});
                 let body = body.gen_rust();
-                quote! { ::gdx::proxy #generics (#cb, |#bind| #body) }
+                let moves = if *moves {
+                    quote! { move }
+                } else {
+                    quote! {}
+                };
+                quote! { ::gdx::proxy #generics (#cb, #moves |#bind| #body) }
             }
         }
     }
