@@ -11,6 +11,13 @@ pub struct ViewBody {
     pub views: Vec<ViewType>,
 }
 
+pub struct MapClause {
+    moves: bool,
+    args: Punctuated<(Pat, Type), Token![,]>,
+    result: Punctuated<Expr, Token![,]>,
+    result_type: Option<Punctuated<Type, Token![,]>>,
+}
+
 pub struct IfView {
     cond: Expr,
     body: ViewBody,
@@ -38,9 +45,8 @@ pub enum ViewType {
     },
     If(IfView),
     Map {
-        args: Punctuated<(Pat, Type), Token![,]>,
-        result: Punctuated<Expr, Token![,]>,
-        moves: bool,
+        conditional: bool,
+        clause: MapClause,
         body: ViewBody,
     },
     Dyn(ViewBody),
@@ -71,6 +77,45 @@ pub enum ElemModifier {
         name: Ident,
         value: Expr,
     },
+}
+
+impl Parse for MapClause {
+    fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+        let moves = input.peek(Token![move]);
+        if moves {
+            input.parse::<Token![move]>()?;
+        }
+        let inner;
+        parenthesized!(inner in input);
+        let args = Punctuated::parse_terminated_with(&inner, |inner| {
+            let name = Pat::parse_single(inner)?;
+            let typ = if inner.peek(Token![:]) {
+                inner.parse::<Token![:]>()?;
+                inner.parse()?
+            } else {
+                parse_quote! { _ }
+            };
+            Ok((name, typ))
+        })?;
+        input.parse::<Token![=>]>()?;
+        let inner;
+        parenthesized!(inner in input);
+        let result = Punctuated::parse_terminated(&inner)?;
+        let result_type = if input.peek(Token![:]) {
+            input.parse::<Token![:]>()?;
+            let inner;
+            parenthesized!(inner in input);
+            Some(Punctuated::parse_terminated(&inner)?)
+        } else {
+            None
+        };
+        Ok(Self {
+            moves,
+            args,
+            result,
+            result_type,
+        })
+    }
 }
 
 impl Parse for Event {
@@ -172,33 +217,18 @@ impl Parse for ViewType {
         } else if input.peek(Token![become]) {
             input.parse::<Token![become]>()?;
 
-            let inner;
-            parenthesized!(inner in input);
-            let args = Punctuated::parse_terminated_with(&inner, |inner| {
-                let name = Pat::parse_single(inner)?;
-                let typ = if inner.peek(Token![:]) {
-                    inner.parse::<Token![:]>()?;
-                    inner.parse()?
-                } else {
-                    parse_quote! { _ }
-                };
-                Ok((name, typ))
-            })?;
-            input.parse::<Token![=>]>()?;
-            let inner;
-            parenthesized!(inner in input);
-            let result = Punctuated::parse_terminated(&inner)?;
-            let moves = input.peek(Token![move]);
-            if moves {
-                input.parse::<Token![move]>()?;
+            let conditional = input.peek(Token![if]);
+            if conditional {
+                input.parse::<Token![if]>()?;
             }
+
+            let clause = input.parse()?;
             let inner;
             braced!(inner in input);
             let body = inner.parse()?;
             Ok(ViewType::Map {
-                moves,
-                args,
-                result,
+                conditional,
+                clause,
                 body,
             })
         } else if input.peek(Token![dyn]) {
@@ -385,22 +415,44 @@ impl ViewType {
             }
             ViewType::If(if_view) => if_view.gen_rust(),
             ViewType::Map {
-                moves,
-                args,
-                result,
+                conditional,
+                clause,
                 body,
             } => {
-                let (arg_names, arg_types): (Vec<_>, Vec<_>) = args.iter().cloned().unzip();
-                let result_expr = result.iter();
+                let (arg_pats, arg_types): (Vec<_>, Vec<_>) = clause.args.iter().cloned().unzip();
+                let result_expr = clause.result.iter();
+                let moves = clause.moves;
+                let result_type = if let Some(result_type) = &clause.result_type {
+                    let result_types = result_type.iter();
+                    quote! { (#(#result_types,)*) }
+                } else {
+                    quote! { _ }
+                };
                 let body = body.gen_rust();
 
-                let moves = if *moves {
+                let moves = if moves {
                     quote! { move }
                 } else {
                     quote! {}
                 };
 
-                quote! { ::gdx::map(#moves |(#(#arg_names,)*): &mut (#(#arg_types,)*)| (#(#result_expr,)*), #body) }
+                if !*conditional {
+                    quote! { ::gdx::map::<(#(#arg_types,)*), #result_type, _, _>(#moves |(#(#arg_pats,)*)| { (#(#result_expr,)*) }, #body) }
+                } else {
+                    quote! {
+                        ::gdx::using(
+                            #moves |__stateTemp: &mut (#(#arg_types,)*)|
+                            if let ( #(#arg_pats,)* ) = __stateTemp {
+                                Some(::gdx::map::<(#(#arg_types,)*), #result_type, _, _>(#moves |__stateTemp: &mut (#(#arg_types,)*)| {
+                                    let ( #(#arg_pats,)* ) = __stateTemp else { unreachable!() };
+                                    (#(#result_expr,)*)
+                                }, #body))
+                            } else {
+                                None
+                            }
+                        )
+                    }
+                }
             }
             ViewType::Dyn(view_body) => {
                 let body = view_body.gen_rust();
