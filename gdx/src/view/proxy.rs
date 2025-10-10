@@ -5,7 +5,6 @@ use crate::{
     ctx::{FullMessage, MsgQueue},
 };
 
-#[derive(Clone)]
 pub struct MessageProxy<T> {
     queue: MsgQueue,
     path: Arc<[ViewID]>,
@@ -19,6 +18,15 @@ impl<T: 'static> MessageProxy<T> {
             },
             path: self.path.clone(),
         });
+    }
+}
+impl<T> Clone for MessageProxy<T> {
+    fn clone(&self) -> Self {
+        Self {
+            queue: self.queue.clone(),
+            path: self.path.clone(),
+            _p: PhantomData,
+        }
     }
 }
 
