@@ -77,6 +77,7 @@ where
         };
         let inner = (self.inner_fn)(proxy);
         inner.rebuild(&state.0, &mut state.1, ctx, anchor, anchor_type, app_state);
+        state.0 = inner;
     }
 
     fn teardown(

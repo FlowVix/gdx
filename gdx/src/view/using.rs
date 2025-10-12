@@ -37,6 +37,7 @@ where
     ) {
         let inner = (self.inner_fn)(app_state);
         inner.rebuild(&state.0, &mut state.1, ctx, anchor, anchor_type, app_state);
+        state.0 = inner;
     }
 
     fn teardown(
